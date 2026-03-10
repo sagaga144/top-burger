@@ -1,0 +1,227 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../store/authStore';
+import { getUserReviews, getUserProfile } from '../../lib/firestore';
+import { ReviewWithId, AppUser } from '../../types';
+import RestaurantCard from '../../components/RestaurantCard';
+
+function getInitial(email: string): string {
+  return email.charAt(0).toUpperCase();
+}
+
+function formatDate(timestamp: { toDate?: () => Date } | null | undefined): string {
+  if (!timestamp) return '';
+  try {
+    const date = typeof timestamp.toDate === 'function'
+      ? timestamp.toDate()
+      : new Date();
+    return date.toLocaleDateString('en-IL', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function getScoreColorClass(score: number): string {
+  if (score >= 8) return 'text-score-high';
+  if (score >= 5) return 'text-score-mid';
+  return 'text-score-low';
+}
+
+interface UserCardProps {
+  email: string;
+}
+
+function UserCard({ email }: UserCardProps) {
+  return (
+    <View
+      className="bg-bg-card rounded-2xl px-5 py-5 mx-5 mt-4 mb-3 flex-row items-center"
+      style={{
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
+    >
+      <View className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mr-4">
+        <Text className="text-2xl font-black text-text-inverse">
+          {getInitial(email)}
+        </Text>
+      </View>
+      <View className="flex-1">
+        <Text className="text-base font-bold text-text-primary" numberOfLines={1}>
+          {email}
+        </Text>
+        <Text className="text-sm text-text-secondary mt-0.5">Member</Text>
+      </View>
+    </View>
+  );
+}
+
+interface StatCardProps {
+  label: string;
+  value: string;
+}
+
+function StatCard({ label, value }: StatCardProps) {
+  return (
+    <View
+      className="flex-1 bg-bg-card rounded-2xl px-4 py-4 items-center"
+      style={{
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
+    >
+      <Text className="text-2xl font-black text-text-primary">{value}</Text>
+      <Text className="text-xs text-text-secondary mt-1 text-center">{label}</Text>
+    </View>
+  );
+}
+
+function EmptyReviews() {
+  return (
+    <View className="items-center py-12 px-8">
+      <Text className="text-5xl mb-4">🍔</Text>
+      <Text className="text-base font-bold text-text-primary mb-1">
+        No reviews yet
+      </Text>
+      <Text className="text-sm text-text-secondary text-center">
+        Start rating burger joints from the Rate tab!
+      </Text>
+    </View>
+  );
+}
+
+export default function ProfileScreen() {
+  const { user, signOutUser } = useAuth();
+  const [reviews, setReviews] = useState<ReviewWithId[]>([]);
+  const [profile, setProfile] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [userReviews, userProfile] = await Promise.all([
+        getUserReviews(user.uid),
+        getUserProfile(user.uid),
+      ]);
+      setReviews(userReviews);
+      setProfile(userProfile);
+    } catch {
+      // Silent fail — show empty state
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: signOutUser,
+      },
+    ]);
+  };
+
+  if (!user) return null;
+
+  const totalReviews = profile?.totalReviews ?? reviews.length;
+  const avgScore = profile?.averageScoreGiven ?? 0;
+
+  const listHeader = (
+    <View>
+      <UserCard email={user.email ?? ''} />
+
+      {/* Stats row */}
+      <View className="flex-row px-5 gap-3 mb-4">
+        <StatCard
+          label="Reviews"
+          value={String(totalReviews)}
+        />
+        <StatCard
+          label="Avg Score Given"
+          value={avgScore > 0 ? avgScore.toFixed(1) : '—'}
+        />
+      </View>
+
+      {/* Section label */}
+      {reviews.length > 0 ? (
+        <View className="px-5 pb-2">
+          <Text className="text-xs font-bold text-text-secondary tracking-widest">
+            YOUR REVIEWS
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const listFooter = (
+    <View className="px-5 pt-4 pb-8">
+      <Pressable
+        onPress={handleSignOut}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+        testID="sign-out-button"
+        className="h-13 rounded-xl border border-brand-red items-center justify-center"
+      >
+        <Text className="text-brand-red font-semibold text-base">Sign Out</Text>
+      </Pressable>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-bg-base">
+        <UserCard email={user.email ?? ''} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#E63946" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-bg-base">
+      <FlatList
+        data={reviews}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={<EmptyReviews />}
+        ListFooterComponent={listFooter}
+        renderItem={({ item }) => (
+          <View className="px-5">
+            <RestaurantCard
+              name={item.restaurantName}
+              address={item.restaurantAddress}
+              averageScore={item.averageScore}
+              variant="compact"
+              date={formatDate(item.createdAt as Parameters<typeof formatDate>[0])}
+            />
+          </View>
+        )}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 0 }}
+      />
+    </SafeAreaView>
+  );
+}

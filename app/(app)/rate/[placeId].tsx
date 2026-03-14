@@ -178,6 +178,7 @@ export default function RateScreen() {
     try {
       await saveReviewForMultipleUsers({
         authorUid: user.uid,
+        authorEmail: user.email ?? '',
         taggedUids: selectedFriends.map((f) => f.uid),
         taggedUsers: selectedFriends,
         placeId,

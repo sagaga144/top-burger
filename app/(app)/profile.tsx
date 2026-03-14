@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../store/authStore';
 import { subscribeToUserReviews, getUserProfile } from '../../lib/firestore';
 import { ReviewWithId, AppUser } from '../../types';
@@ -110,6 +111,7 @@ function EmptyReviews() {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user, signOutUser } = useAuth();
   const [reviews, setReviews] = useState<ReviewWithId[]>([]);
   const [profile, setProfile] = useState<AppUser | null>(null);
@@ -232,7 +234,18 @@ export default function ProfileScreen() {
         ListEmptyComponent={<EmptyReviews />}
         ListFooterComponent={listFooter}
         renderItem={({ item }) => (
-          <View className="px-5">
+          <Pressable
+            className="px-5"
+            onPress={() =>
+              router.push({
+                pathname: '/(app)/summary/[reviewId]',
+                params: { reviewId: item.id },
+              })
+            }
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={`View review for ${item.restaurantName}`}
+          >
             <RestaurantCard
               name={item.restaurantName}
               address={item.restaurantAddress}
@@ -240,7 +253,7 @@ export default function ProfileScreen() {
               variant="compact"
               date={formatDate(item.createdAt as Parameters<typeof formatDate>[0])}
             />
-          </View>
+          </Pressable>
         )}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 0 }}

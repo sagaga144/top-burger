@@ -293,6 +293,7 @@ export async function searchUsersByDisplayName(
 
 export interface SaveReviewForMultipleUsersParams {
   authorUid: string;
+  authorEmail: string;
   taggedUids: string[];
   taggedUsers?: UserSearchResult[];
   placeId: string;
@@ -307,6 +308,7 @@ export async function saveReviewForMultipleUsers(
 ): Promise<void> {
   const {
     authorUid,
+    authorEmail,
     taggedUids,
     taggedUsers = [],
     placeId,
@@ -328,6 +330,7 @@ export async function saveReviewForMultipleUsers(
     photoUrl = await getDownloadURL(photoRef);
   }
 
+  const taggedUserMap = new Map(taggedUsers.map((u) => [u.uid, u]));
   const batch = writeBatch(db);
 
   // Write one review document per participant
@@ -339,7 +342,7 @@ export async function saveReviewForMultipleUsers(
       restaurantAddress: placeAddress,
       userId: participantUid,
       authorId: authorUid,
-      userEmail: '',
+      userEmail: participantUid === authorUid ? authorEmail : (taggedUserMap.get(participantUid)?.email ?? ''),
       scores,
       averageScore,
       photoUrl,
@@ -370,7 +373,6 @@ export async function saveReviewForMultipleUsers(
   });
 
   // Upsert tagged participant user docs so they're discoverable by name search
-  const taggedUserMap = new Map(taggedUsers.map((u) => [u.uid, u]));
   for (const uid of taggedUids) {
     const info = taggedUserMap.get(uid);
     if (!info) continue;

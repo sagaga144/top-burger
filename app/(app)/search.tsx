@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { searchRestaurantsInIsrael } from '../../lib/places';
 import { PlaceResult } from '../../types';
 
-type SearchState = 'idle' | 'loading' | 'results' | 'selected';
+type SearchState = 'idle' | 'loading' | 'results' | 'selected' | 'manual';
 
 interface PlaceResultRowProps {
   place: PlaceResult;
@@ -60,10 +60,10 @@ function SelectedCard({ place, onClear, onStartRating }: SelectedCardProps) {
         className="bg-bg-card rounded-2xl px-4 py-4 border-2 border-brand-red"
         style={{
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.08,
-          shadowRadius: 6,
-          elevation: 3,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 12,
+          elevation: 6,
         }}
       >
         <View className="flex-row items-start">
@@ -87,7 +87,7 @@ function SelectedCard({ place, onClear, onStartRating }: SelectedCardProps) {
             accessibilityRole="button"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="close" size={20} color="#6B7280" />
+            <Ionicons name="close" size={20} color="#8E8E93" />
           </Pressable>
         </View>
       </View>
@@ -107,6 +107,137 @@ function SelectedCard({ place, onClear, onStartRating }: SelectedCardProps) {
   );
 }
 
+interface ManualEntryFormProps {
+  name: string;
+  address: string;
+  onChangeName: (text: string) => void;
+  onChangeAddress: (text: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}
+
+function ManualEntryForm({
+  name,
+  address,
+  onChangeName,
+  onChangeAddress,
+  onSubmit,
+  onCancel,
+}: ManualEntryFormProps) {
+  const isSubmitEnabled = name.trim().length > 0;
+
+  return (
+    <View className="mb-4">
+      <View
+        className="bg-bg-card rounded-2xl px-4 py-4 border-2 border-brand-red"
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 12,
+          elevation: 6,
+        }}
+      >
+        {/* Form header */}
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-base font-bold text-text-primary">
+            Enter manually
+          </Text>
+          <Pressable
+            onPress={onCancel}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Cancel manual entry"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            testID="manual-entry-cancel"
+          >
+            <Ionicons name="close" size={20} color="#8E8E93" />
+          </Pressable>
+        </View>
+
+        {/* Name field */}
+        <View className="bg-bg-base border border-border-subtle rounded-xl px-3 h-11 justify-center mb-2">
+          <TextInput
+            value={name}
+            onChangeText={onChangeName}
+            placeholder="Restaurant name (required)"
+            placeholderTextColor="#8E8E93"
+            autoCapitalize="words"
+            returnKeyType="next"
+            testID="manual-entry-name"
+            className="text-text-primary text-sm"
+          />
+        </View>
+
+        {/* Address field */}
+        <View className="bg-bg-base border border-border-subtle rounded-xl px-3 h-11 justify-center">
+          <TextInput
+            value={address}
+            onChangeText={onChangeAddress}
+            placeholder="Address (optional)"
+            placeholderTextColor="#8E8E93"
+            autoCapitalize="words"
+            returnKeyType="done"
+            onSubmitEditing={isSubmitEnabled ? onSubmit : undefined}
+            testID="manual-entry-address"
+            className="text-text-primary text-sm"
+          />
+        </View>
+      </View>
+
+      {/* Start Rating button */}
+      <Pressable
+        onPress={isSubmitEnabled ? onSubmit : undefined}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Start Rating"
+        accessibilityState={{ disabled: !isSubmitEnabled }}
+        testID="manual-entry-submit"
+        className={`rounded-xl h-13 items-center justify-center mt-3 ${
+          isSubmitEnabled ? 'bg-brand-red' : 'bg-bg-card'
+        }`}
+        style={
+          isSubmitEnabled
+            ? undefined
+            : { borderWidth: 1, borderColor: '#2C2C2E' }
+        }
+      >
+        <Text
+          className={`font-bold text-base ${
+            isSubmitEnabled ? 'text-text-inverse' : 'text-text-secondary'
+          }`}
+        >
+          Start Rating
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// Trigger link shown at the bottom of idle / results / empty-results views
+interface CantFindItTriggerProps {
+  onPress: () => void;
+}
+
+function CantFindItTrigger({ onPress }: CantFindItTriggerProps) {
+  return (
+    <View className="items-center py-4">
+      <Pressable
+        onPress={onPress}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Can't find it? Enter manually"
+        testID="cant-find-it-trigger"
+      >
+        <Text className="text-sm text-text-secondary">
+          {"Can't find it? "}
+          <Text className="text-brand-red font-semibold">Enter manually</Text>
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function SearchScreen() {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -115,6 +246,11 @@ export default function SearchScreen() {
   const [searchState, setSearchState] = useState<SearchState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Manual entry state
+  const [manualName, setManualName] = useState('');
+  const [manualAddress, setManualAddress] = useState('');
+  const prevSearchStateRef = useRef<SearchState>('idle');
 
   const handleQueryChange = useCallback((text: string) => {
     setQuery(text);
@@ -138,8 +274,8 @@ export default function SearchScreen() {
         const places = await searchRestaurantsInIsrael(text.trim());
         setResults(places);
         setSearchState('results');
-      } catch {
-        setErrorMessage('Could not search. Check your connection and try again.');
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : 'Could not search. Check your connection and try again.');
         setSearchState('idle');
       }
     }, 500);
@@ -178,6 +314,32 @@ export default function SearchScreen() {
     setErrorMessage(null);
   }, []);
 
+  const handleOpenManual = useCallback(() => {
+    prevSearchStateRef.current = searchState;
+    setManualName('');
+    setManualAddress('');
+    setSearchState('manual');
+    Keyboard.dismiss();
+  }, [searchState]);
+
+  const handleCancelManual = useCallback(() => {
+    setSearchState(prevSearchStateRef.current);
+  }, []);
+
+  const handleManualSubmit = useCallback(() => {
+    const trimmedName = manualName.trim();
+    if (!trimmedName) return;
+    Keyboard.dismiss();
+    router.push({
+      pathname: '/(app)/rate/[placeId]',
+      params: {
+        placeId: `manual-${Date.now()}`,
+        name: trimmedName,
+        address: manualAddress.trim(),
+      },
+    });
+  }, [manualName, manualAddress, router]);
+
   return (
     <SafeAreaView className="flex-1 bg-bg-base">
       <View className="flex-1 px-5">
@@ -193,12 +355,12 @@ export default function SearchScreen() {
 
         {/* Search bar */}
         <View className="flex-row bg-bg-card border border-border-subtle rounded-2xl px-4 h-12 items-center mb-4">
-          <Ionicons name="search" size={18} color="#6B7280" />
+          <Ionicons name="search" size={18} color="#8E8E93" />
           <TextInput
             value={query}
             onChangeText={handleQueryChange}
             placeholder="Search restaurants..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#8E8E93"
             autoCapitalize="none"
             returnKeyType="search"
             testID="search-input"
@@ -212,15 +374,15 @@ export default function SearchScreen() {
               accessibilityRole="button"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              <Ionicons name="close-circle" size={18} color="#8E8E93" />
             </Pressable>
           ) : null}
         </View>
 
         {/* Error */}
         {errorMessage ? (
-          <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
-            <Text className="text-red-600 text-sm">{errorMessage}</Text>
+          <View className="bg-error-bg border border-error-border rounded-xl px-4 py-3 mb-4">
+            <Text className="text-error-text text-sm">{errorMessage}</Text>
           </View>
         ) : null}
 
@@ -230,6 +392,18 @@ export default function SearchScreen() {
             place={selectedPlace}
             onClear={handleClearSelection}
             onStartRating={handleStartRating}
+          />
+        ) : null}
+
+        {/* Manual entry form */}
+        {searchState === 'manual' ? (
+          <ManualEntryForm
+            name={manualName}
+            address={manualAddress}
+            onChangeName={setManualName}
+            onChangeAddress={setManualAddress}
+            onSubmit={handleManualSubmit}
+            onCancel={handleCancelManual}
           />
         ) : null}
 
@@ -251,6 +425,7 @@ export default function SearchScreen() {
               <Text className="text-sm text-text-secondary text-center">
                 Try a different search term
               </Text>
+              <CantFindItTrigger onPress={handleOpenManual} />
             </View>
           ) : (
             <FlatList
@@ -261,7 +436,8 @@ export default function SearchScreen() {
               )}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={{ paddingBottom: 8 }}
+              ListFooterComponent={<CantFindItTrigger onPress={handleOpenManual} />}
             />
           )
         ) : null}
@@ -276,6 +452,7 @@ export default function SearchScreen() {
             <Text className="text-sm text-text-secondary text-center">
               Search by name or location to start rating
             </Text>
+            <CantFindItTrigger onPress={handleOpenManual} />
           </View>
         ) : null}
       </View>

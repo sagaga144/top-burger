@@ -1,44 +1,79 @@
 import { PlaceResult } from '../types';
 
-const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
-const PLACES_ENDPOINT = 'https://places.googleapis.com/v1/places:searchText';
+const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/search';
+
+// Food-related OSM types we want to include
+const FOOD_TYPES = new Set([
+  'restaurant', 'fast_food', 'cafe', 'bar', 'pub',
+  'food_court', 'biergarten', 'ice_cream',
+]);
+
+interface NominatimResult {
+  osm_type: string;
+  osm_id: number;
+  display_name: string;
+  name: string;
+  type: string;
+  class: string;
+  address?: {
+    road?: string;
+    house_number?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    suburb?: string;
+  };
+}
 
 export async function searchRestaurantsInIsrael(
   textQuery: string
 ): Promise<PlaceResult[]> {
   if (!textQuery.trim()) return [];
 
-  const response = await fetch(PLACES_ENDPOINT, {
-    method: 'POST',
+  const params = new URLSearchParams({
+    q: textQuery,
+    format: 'json',
+    countrycodes: 'il',
+    limit: '20',
+    addressdetails: '1',
+    'accept-language': 'en',
+  });
+
+  const response = await fetch(`${NOMINATIM_ENDPOINT}?${params}`, {
     headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': PLACES_API_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress',
+      'User-Agent': 'TopBurgerApp/1.0 (burger restaurant ratings)',
+      Accept: 'application/json',
     },
-    body: JSON.stringify({
-      textQuery,
-      includedType: 'restaurant',
-      regionCode: 'il',
-      pageSize: 10,
-    }),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Places API error ${response.status}: ${errorText}`);
+    throw new Error(`Search failed (${response.status}). Please try again.`);
   }
 
-  const data = await response.json();
+  const data: NominatimResult[] = await response.json();
 
-  if (!data.places || !Array.isArray(data.places)) {
-    return [];
-  }
-
-  return data.places.map(
-    (place: { id: string; displayName: { text: string }; formattedAddress: string }) => ({
-      id: place.id,
-      displayName: place.displayName?.text ?? 'Unknown',
-      formattedAddress: place.formattedAddress ?? '',
-    })
+  // Filter to food places; if none match, return all results (user may search by name only)
+  const foodResults = data.filter(
+    (r) => FOOD_TYPES.has(r.type) || r.class === 'amenity'
   );
+  const results = foodResults.length > 0 ? foodResults : data;
+
+  return results.slice(0, 10).map((item) => {
+    const addr = item.address ?? {};
+    const parts: string[] = [];
+    if (addr.road) {
+      parts.push(addr.house_number ? `${addr.road} ${addr.house_number}` : addr.road);
+    }
+    const city = addr.city ?? addr.town ?? addr.village ?? addr.suburb ?? '';
+    if (city) parts.push(city);
+
+    const displayName = item.name || item.display_name.split(',')[0].trim();
+    const formattedAddress = parts.length > 0 ? parts.join(', ') : 'Israel';
+
+    return {
+      id: `osm-${item.osm_type}-${item.osm_id}`,
+      displayName,
+      formattedAddress,
+    } satisfies PlaceResult;
+  });
 }

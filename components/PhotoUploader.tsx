@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, Image, Alert } from 'react-native';
+import { View, Text, Pressable, Image, Alert, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 interface PhotoUploaderProps {
@@ -12,13 +12,16 @@ export default function PhotoUploader({
   onPhotoSelected,
 }: PhotoUploaderProps) {
   const handlePickPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission required',
-        'Please allow access to your photo library to upload a photo.'
-      );
-      return;
+    // On web the browser handles file access natively — no permission API available.
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission required',
+          'Please allow access to your photo library to upload a photo.'
+        );
+        return;
+      }
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({

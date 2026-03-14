@@ -8,6 +8,7 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface AppUser {
   email: string;
+  displayName?: string;
   createdAt: Timestamp;
   totalReviews: number;
   averageScoreGiven: number;
@@ -36,10 +37,12 @@ export interface Review {
   restaurantName: string;
   restaurantAddress: string;
   userId: string;
+  authorId: string;
   userEmail: string;
   scores: ReviewScores;
   averageScore: number;
   photoUrl: string | null;
+  eatenWith: string[];
   createdAt: Timestamp;
 }
 

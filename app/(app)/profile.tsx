@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../store/authStore';
-import { getUserReviews, getUserProfile } from '../../lib/firestore';
+import { subscribeToUserReviews, getUserProfile } from '../../lib/firestore';
 import { ReviewWithId, AppUser } from '../../types';
 import RestaurantCard from '../../components/RestaurantCard';
 
@@ -49,10 +50,10 @@ function UserCard({ email }: UserCardProps) {
       className="bg-bg-card rounded-2xl px-5 py-5 mx-5 mt-4 mb-3 flex-row items-center"
       style={{
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.18,
+        shadowRadius: 12,
+        elevation: 6,
       }}
     >
       <View className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mr-4">
@@ -73,9 +74,10 @@ function UserCard({ email }: UserCardProps) {
 interface StatCardProps {
   label: string;
   value: string;
+  highlight?: boolean;
 }
 
-function StatCard({ label, value }: StatCardProps) {
+function StatCard({ label, value, highlight }: StatCardProps) {
   return (
     <View
       className="flex-1 bg-bg-card rounded-2xl px-4 py-4 items-center"
@@ -87,7 +89,7 @@ function StatCard({ label, value }: StatCardProps) {
         elevation: 2,
       }}
     >
-      <Text className="text-2xl font-black text-text-primary">{value}</Text>
+      <Text className={`text-2xl font-black ${highlight ? 'text-brand-red' : 'text-text-primary'}`}>{value}</Text>
       <Text className="text-xs text-text-secondary mt-1 text-center">{label}</Text>
     </View>
   );
@@ -113,33 +115,53 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    try {
-      const [userReviews, userProfile] = await Promise.all([
-        getUserReviews(user.uid),
-        getUserProfile(user.uid),
-      ]);
-      setReviews(userReviews);
-      setProfile(userProfile);
-    } catch {
-      // Silent fail — show empty state
-    }
-  }, [user]);
+  const firstEmit = useRef(true);
 
   useEffect(() => {
-    loadData().finally(() => setLoading(false));
-  }, [loadData]);
+    if (!user) return;
+    firstEmit.current = true;
+
+    // Load profile (one-shot)
+    getUserProfile(user.uid)
+      .then((p) => setProfile(p))
+      .catch(() => {/* silent fail */});
+
+    const unsubscribe = subscribeToUserReviews(
+      user.uid,
+      (data) => {
+        setReviews(data);
+        if (firstEmit.current) {
+          firstEmit.current = false;
+          setLoading(false);
+        }
+      },
+      () => {
+        // Silent fail — show empty state
+        if (firstEmit.current) {
+          firstEmit.current = false;
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: signOutUser,
-      },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Sign out of Top Burger?')) {
+        signOutUser();
+      }
+    } else {
+      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: signOutUser,
+        },
+      ]);
+    }
   };
 
   if (!user) return null;
@@ -156,6 +178,7 @@ export default function ProfileScreen() {
         <StatCard
           label="Reviews"
           value={String(totalReviews)}
+          highlight
         />
         <StatCard
           label="Avg Score Given"
@@ -166,7 +189,7 @@ export default function ProfileScreen() {
       {/* Section label */}
       {reviews.length > 0 ? (
         <View className="px-5 pb-2">
-          <Text className="text-xs font-bold text-text-secondary tracking-widest">
+          <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
             YOUR REVIEWS
           </Text>
         </View>

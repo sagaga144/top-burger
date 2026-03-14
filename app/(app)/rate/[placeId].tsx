@@ -1,87 +1,105 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
-  Animated,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import ScoreSelector from '../../../components/ScoreSelector';
 import PhotoUploader from '../../../components/PhotoUploader';
 import { RATING_QUESTIONS } from '../../../constants/ratingQuestions';
 import { useAuth } from '../../../store/authStore';
-import { saveReview } from '../../../lib/firestore';
+import {
+  saveReviewForMultipleUsers,
+  searchUsersByDisplayName,
+  UserSearchResult,
+} from '../../../lib/firestore';
 import { ReviewScores } from '../../../types';
 
 type PartialScores = Partial<ReviewScores>;
 
-function ProgressBar({ step, total }: { step: number; total: number }) {
-  const progress = step / total;
+// ---- Score box row ----
+
+interface ScoreRowProps {
+  label: string;
+  selectedScore: number | null;
+  onSelect: (score: number) => void;
+}
+
+function ScoreRow({ label, selectedScore, onSelect }: ScoreRowProps) {
   return (
-    <View className="mx-5 mb-4 h-1.5 bg-border-subtle rounded-full overflow-hidden">
-      <View
-        className="h-full bg-brand-red rounded-full"
-        style={{ width: `${Math.round(progress * 100)}%` }}
-      />
+    <View className="bg-bg-card border border-border-subtle rounded-xl px-4 py-3 mb-1">
+      <Text className="text-sm font-semibold text-text-primary mb-2">{label}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexDirection: 'row' }}
+      >
+        {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((n) => {
+          const selected = selectedScore === n;
+          return (
+            <Pressable
+              key={n}
+              onPress={() => onSelect(n)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`Score ${n} for ${label}`}
+              accessibilityState={{ selected }}
+              testID={`score-box-${label}-${n}`}
+              className={
+                selected
+                  ? 'w-[34px] h-[34px] rounded-lg items-center justify-center mr-1.5 bg-brand-red'
+                  : 'w-[34px] h-[34px] rounded-lg items-center justify-center mr-1.5 bg-bg-base border border-border-subtle'
+              }
+            >
+              <Text
+                className={
+                  selected
+                    ? 'text-sm font-bold text-text-inverse'
+                    : 'text-sm text-text-primary font-medium'
+                }
+              >
+                {n}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
-interface CustomHeaderProps {
-  onBack: () => void;
-  restaurantName: string;
-  restaurantAddress: string;
-  step: number;
-  total: number;
+// ---- Friend tag chip (selected) ----
+
+interface SelectedChipProps {
+  displayName: string;
+  onRemove: () => void;
 }
 
-function CustomHeader({
-  onBack,
-  restaurantName,
-  restaurantAddress,
-  step,
-  total,
-}: CustomHeaderProps) {
+function SelectedChip({ displayName, onRemove }: SelectedChipProps) {
   return (
-    <View className="px-5 pt-4 pb-2">
-      <View className="flex-row items-center justify-between mb-1">
-        <Pressable
-          onPress={onBack}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center"
-        >
-          <Ionicons name="arrow-back" size={18} color="#1C1C1E" />
-        </Pressable>
-        <Text className="text-sm font-medium text-text-secondary">
-          {step} of {total}
-        </Text>
-        <View className="w-9" />
-      </View>
-      <View className="mt-2">
-        <Text
-          className="text-base font-bold text-text-primary"
-          numberOfLines={1}
-        >
-          {restaurantName}
-        </Text>
-        <Text
-          className="text-xs text-text-secondary mt-0.5"
-          numberOfLines={1}
-        >
-          {restaurantAddress}
-        </Text>
-      </View>
+    <View className="flex-row items-center bg-brand-red rounded-full px-3 py-1.5 mr-2 mb-2">
+      <Text className="text-sm text-text-inverse mr-1">{displayName}</Text>
+      <Pressable
+        onPress={onRemove}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${displayName}`}
+      >
+        <Ionicons name="close" size={14} color="#F5F5F5" />
+      </Pressable>
     </View>
   );
 }
+
+// ---- Main screen ----
 
 export default function RateScreen() {
   const router = useRouter();
@@ -96,162 +114,233 @@ export default function RateScreen() {
   const restaurantName = params.name ?? 'Restaurant';
   const restaurantAddress = params.address ?? '';
 
-  const [currentStep, setCurrentStep] = useState(1);
   const [scores, setScores] = useState<PartialScores>({});
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const totalSteps = RATING_QUESTIONS.length;
-  const currentQuestion = RATING_QUESTIONS[currentStep - 1];
-  const currentScore = scores[currentQuestion.key] ?? null;
+  // Friend search state
+  const [friendQuery, setFriendQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<UserSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleScoreSelect = (score: number) => {
-    setScores((prev) => ({ ...prev, [currentQuestion.key]: score }));
-  };
-
-  const handleBack = () => {
-    if (currentStep === 1) {
-      router.back();
-    } else {
-      setCurrentStep((s) => s - 1);
+  // Debounced friend search
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!friendQuery.trim() || !user) {
+      setSearchResults([]);
+      return;
     }
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await searchUsersByDisplayName(friendQuery.trim(), user.uid);
+        // Filter out already-selected friends
+        const selectedUids = new Set(selectedFriends.map((f) => f.uid));
+        setSearchResults(results.filter((r) => !selectedUids.has(r.uid)));
+      } catch {
+        // Silently fail search
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [friendQuery, user, selectedFriends]);
+
+  const handleSelectFriend = (friend: UserSearchResult) => {
+    setSelectedFriends((prev) => [...prev, friend]);
+    setFriendQuery('');
+    setSearchResults([]);
   };
 
-  const handleNext = async () => {
-    if (currentScore === null) return;
+  const handleRemoveFriend = (uid: string) => {
+    setSelectedFriends((prev) => prev.filter((f) => f.uid !== uid));
+  };
 
-    if (currentStep < totalSteps) {
-      setCurrentStep((s) => s + 1);
+  const allAnswered =
+    RATING_QUESTIONS.every((q) => scores[q.key] !== undefined);
+
+  const handleSubmit = async () => {
+    if (!user) return;
+
+    if (!allAnswered) {
+      setError('Please rate all 7 categories before submitting.');
       return;
     }
 
-    // Final step — submit
-    if (!user) return;
-
-    // Validate all scores present
-    const allKeys = RATING_QUESTIONS.map((q) => q.key);
-    for (const key of allKeys) {
-      if (scores[key] === undefined) {
-        Alert.alert('Missing scores', 'Please rate all questions before submitting.');
-        return;
-      }
-    }
-
+    setError(null);
     setSubmitting(true);
     try {
-      const reviewId = await saveReview({
+      await saveReviewForMultipleUsers({
+        authorUid: user.uid,
+        taggedUids: selectedFriends.map((f) => f.uid),
+        taggedUsers: selectedFriends,
         placeId,
-        restaurantName,
-        restaurantAddress,
-        userId: user.uid,
-        userEmail: user.email ?? '',
+        placeName: restaurantName,
+        placeAddress: restaurantAddress,
         scores: scores as ReviewScores,
         photoUri,
       });
-      router.replace({
-        pathname: '/(app)/summary/[reviewId]',
-        params: { reviewId },
-      });
+      router.replace('/(app)');
     } catch (err) {
-      Alert.alert('Error', 'Failed to save your review. Please try again.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to save your review. Please try again.'
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const isLastStep = currentStep === totalSteps;
-  const hasScore = currentScore !== null;
-
   return (
     <SafeAreaView className="flex-1 bg-bg-base">
-      <CustomHeader
-        onBack={handleBack}
-        restaurantName={restaurantName}
-        restaurantAddress={restaurantAddress}
-        step={currentStep}
-        total={totalSteps}
-      />
-
-      <ProgressBar step={currentStep} total={totalSteps} />
-
-      {/* Question zone */}
-      <ScrollView
-        className="flex-1 px-5"
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View className="mt-4 mb-6">
-          <Text className="text-xs font-bold text-text-secondary tracking-widest mb-2">
-            QUESTION {currentStep}
-          </Text>
-          <Text className="text-2xl font-bold text-text-primary leading-tight">
-            {currentQuestion.question}
-          </Text>
-        </View>
-
-        <ScoreSelector
-          selectedScore={currentScore}
-          onSelect={handleScoreSelect}
-        />
-
-        {/* Score labels */}
-        <View className="flex-row justify-between mt-2 px-1">
-          <Text className="text-xs text-text-secondary">
-            {currentQuestion.key === 'priciness' ? 'Cheap' : 'Poor'}
-          </Text>
-          <Text className="text-xs text-text-secondary">
-            {currentQuestion.key === 'priciness' ? 'Very Expensive' : 'Excellent'}
-          </Text>
-        </View>
-
-        {/* Photo upload on last step */}
-        {currentQuestion.hasPhotoUpload ? (
-          <View className="mt-6">
-            <Text className="text-sm font-medium text-text-secondary mb-2">
-              Optional Photo
-            </Text>
-            <PhotoUploader
-              photoUri={photoUri}
-              onPhotoSelected={setPhotoUri}
-            />
-          </View>
-        ) : null}
-      </ScrollView>
-
-      {/* Navigation row */}
-      <View className="flex-row px-5 pb-8 pt-3 gap-3">
-        {currentStep > 1 ? (
+        {/* Header */}
+        <View className="px-5 pt-4 pb-2 flex-row items-center gap-3">
           <Pressable
-            onPress={handleBack}
-            accessible
+            onPress={() => router.back()}
+            accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Previous question"
-            className="flex-1 h-13 rounded-xl border border-border-subtle items-center justify-center"
+            accessibilityLabel="Go back"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center"
           >
-            <Text className="font-semibold text-text-primary">Previous</Text>
+            <Ionicons name="chevron-back" size={18} color="#8E8E93" />
           </Pressable>
-        ) : null}
-
-        <Pressable
-          onPress={handleNext}
-          disabled={!hasScore || submitting}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={isLastStep ? 'Submit review' : 'Next question'}
-          testID={isLastStep ? 'submit-review-button' : 'next-question-button'}
-          className="flex-1 h-13 bg-brand-red rounded-xl items-center justify-center"
-          style={{ opacity: !hasScore || submitting ? 0.4 : 1 }}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text className="text-text-inverse font-bold text-base">
-              {isLastStep ? 'Submit' : 'Next'}
+          <View className="flex-1">
+            <Text className="text-base font-bold text-text-primary" numberOfLines={1}>
+              {restaurantName}
             </Text>
-          )}
-        </Pressable>
-      </View>
+            <Text className="text-xs text-text-secondary mt-0.5" numberOfLines={1}>
+              {restaurantAddress}
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView
+          className="flex-1 px-5"
+          contentContainerStyle={{ paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Rating questions */}
+          <View className="mt-4 mb-2 pb-2">
+            {RATING_QUESTIONS.map((q) => (
+              <ScoreRow
+                key={q.key}
+                label={q.label}
+                selectedScore={scores[q.key] ?? null}
+                onSelect={(score) =>
+                  setScores((prev) => ({ ...prev, [q.key]: score }))
+                }
+              />
+            ))}
+          </View>
+
+          {/* Photo section */}
+          <View className="mt-5">
+            <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              Photo
+            </Text>
+            <PhotoUploader photoUri={photoUri} onPhotoSelected={setPhotoUri} />
+          </View>
+
+          {/* I ate with section */}
+          <View className="mt-5">
+            <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              I ate with
+            </Text>
+          </View>
+
+          {/* Selected friend chips */}
+          {selectedFriends.length > 0 ? (
+            <View className="flex-row flex-wrap mb-2">
+              {selectedFriends.map((f) => (
+                <SelectedChip
+                  key={f.uid}
+                  displayName={f.displayName}
+                  onRemove={() => handleRemoveFriend(f.uid)}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {/* Friend search input */}
+          <View className="relative">
+            <TextInput
+              value={friendQuery}
+              onChangeText={setFriendQuery}
+              placeholder="Search by name…"
+              placeholderTextColor="#8E8E93"
+              accessible={true}
+              accessibilityLabel="Search friends by name"
+              testID="friend-search-input"
+              className="bg-bg-card border border-border-subtle rounded-xl px-3 h-11 text-text-primary"
+            />
+            {searching ? (
+              <View className="absolute right-3 top-3">
+                <ActivityIndicator size="small" />
+              </View>
+            ) : null}
+          </View>
+
+          {/* Search result chips */}
+          {searchResults.length > 0 ? (
+            <View className="mt-2">
+              {searchResults.map((result) => (
+                <Pressable
+                  key={result.uid}
+                  onPress={() => handleSelectFriend(result)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add ${result.displayName}`}
+                  testID={`friend-result-${result.uid}`}
+                  className="bg-bg-card border border-border-subtle rounded-xl px-3 py-2 mb-1.5 self-start"
+                >
+                  <Text className="text-sm font-semibold text-text-primary">{result.displayName}</Text>
+                  {result.email ? (
+                    <Text className="text-xs text-text-secondary">{result.email}</Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Inline error banner */}
+          {error ? (
+            <View className="bg-error-bg border border-error-border rounded-xl px-4 py-3 mt-4">
+              <Text className="text-error-text text-sm">{error}</Text>
+            </View>
+          ) : null}
+
+          {/* Submit button */}
+          <Pressable
+            onPress={handleSubmit}
+            disabled={submitting}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Submit review"
+            testID="submit-review-button"
+            className="h-13 bg-brand-red rounded-xl items-center justify-center mt-6"
+            style={{ opacity: !allAnswered || submitting ? 0.5 : 1 }}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#F5F5F5" />
+            ) : (
+              <Text className="text-text-inverse font-bold text-base">Submit</Text>
+            )}
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

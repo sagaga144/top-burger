@@ -1,14 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import {
-  initializeAuth,
-  getAuth,
-  getReactNativePersistence,
-  browserLocalPersistence,
-} from 'firebase/auth';
+import { initializeAuth, getAuth, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -19,20 +12,11 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Prevent re-initializing on hot reload
 const isFirstInit = getApps().length === 0;
 const app = isFirstInit ? initializeApp(firebaseConfig) : getApp();
 
-// Use initializeAuth (NOT getAuth) for persistent sessions.
-// On web use browserLocalPersistence; on native use AsyncStorage.
-// Guard against hot-reload re-initialization which would throw.
 export const auth = isFirstInit
-  ? initializeAuth(app, {
-      persistence:
-        Platform.OS === 'web'
-          ? browserLocalPersistence
-          : getReactNativePersistence(ReactNativeAsyncStorage),
-    })
+  ? initializeAuth(app, { persistence: browserLocalPersistence })
   : getAuth(app);
 
 export const db = getFirestore(app);

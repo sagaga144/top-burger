@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Restaurants — public read (rankings page), authenticated write (aggregates)
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Reviews — public read, authenticated create/update
+    // Author (authorId) can delete their own reviews
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+        && resource.data.authorId == request.auth.uid;
+    }
+
+    // Users — authenticated read (friend search), authenticated write
+    // Allows author to update tagged users' review aggregates on submission
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

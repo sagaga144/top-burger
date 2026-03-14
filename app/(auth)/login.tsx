@@ -15,7 +15,9 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth } from '../../lib/firebase';
+import { db } from '../../lib/firebase';
 
 type Mode = 'login' | 'signup';
 
@@ -41,6 +43,7 @@ function getFirebaseErrorMessage(code: string): string {
 export default function LoginScreen() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +62,11 @@ export default function LoginScreen() {
       return;
     }
 
+    if (mode === 'signup' && !displayName.trim()) {
+      setError('Please enter a display name.');
+      return;
+    }
+
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -69,7 +77,14 @@ export default function LoginScreen() {
       if (mode === 'login') {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       } else {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await setDoc(doc(db, 'users', cred.user.uid), {
+          displayName: displayName.trim(),
+          email: email.trim(),
+          totalReviews: 0,
+          averageScoreGiven: 0,
+          createdAt: serverTimestamp(),
+        });
       }
       // Auth gate in _layout.tsx handles navigation
     } catch (err: unknown) {
@@ -102,6 +117,7 @@ export default function LoginScreen() {
     setError(null);
     setResetSent(false);
     setConfirmPassword('');
+    setDisplayName('');
   };
 
   return (
@@ -205,7 +221,7 @@ export default function LoginScreen() {
               value={email}
               onChangeText={(t) => { setEmail(t); clearError(); }}
               placeholder="your@email.com"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#4B5563"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -214,6 +230,25 @@ export default function LoginScreen() {
               className="bg-bg-card border border-border-subtle rounded-xl px-4 h-13 text-text-primary text-base"
             />
           </View>
+
+          {/* Display name (signup only) */}
+          {mode === 'signup' ? (
+            <View className="mb-3">
+              <Text className="text-sm font-medium text-text-secondary mb-1.5">
+                Display Name
+              </Text>
+              <TextInput
+                value={displayName}
+                onChangeText={(t) => { setDisplayName(t); clearError(); }}
+                placeholder="Your name (visible to others)"
+                placeholderTextColor="#4B5563"
+                autoCapitalize="words"
+                returnKeyType="next"
+                testID="display-name-input"
+                className="bg-bg-card border border-border-subtle rounded-xl px-4 h-13 text-text-primary text-base"
+              />
+            </View>
+          ) : null}
 
           {/* Password field */}
           <View className="mb-3">
@@ -225,7 +260,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={(t) => { setPassword(t); clearError(); }}
                 placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#4B5563"
                 secureTextEntry={!showPassword}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 returnKeyType={mode === 'signup' ? 'next' : 'done'}
@@ -257,7 +292,7 @@ export default function LoginScreen() {
                 value={confirmPassword}
                 onChangeText={(t) => { setConfirmPassword(t); clearError(); }}
                 placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#4B5563"
                 secureTextEntry={!showPassword}
                 autoComplete="new-password"
                 returnKeyType="done"
@@ -270,8 +305,8 @@ export default function LoginScreen() {
 
           {/* Error banner */}
           {error ? (
-            <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
-              <Text className="text-red-600 text-sm" testID="error-banner">
+            <View className="bg-error-bg border border-error-border rounded-xl px-4 py-3 mb-4">
+              <Text className="text-error-text text-sm" testID="error-banner">
                 {error}
               </Text>
             </View>
@@ -279,8 +314,8 @@ export default function LoginScreen() {
 
           {/* Reset email sent banner */}
           {resetSent ? (
-            <View className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4">
-              <Text className="text-green-700 text-sm">
+            <View className="bg-success-bg border border-success-border rounded-xl px-4 py-3 mb-4">
+              <Text className="text-success-text text-sm">
                 Password reset email sent. Check your inbox.
               </Text>
             </View>

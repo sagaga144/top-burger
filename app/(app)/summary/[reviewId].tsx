@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getReview } from '../../../lib/firestore';
-import { ReviewWithId } from '../../../types';
+import { getReview, deleteReview, getUserProfile } from '../../../lib/firestore';
+import { ReviewWithId, AppUser } from '../../../types';
 import { RATING_QUESTIONS } from '../../../constants/ratingQuestions';
+import { useAuth } from '../../../store/authStore';
 
 function getScoreColorClass(score: number): string {
   if (score >= 8) return 'text-score-high';
@@ -55,14 +56,17 @@ function DimensionRow({ label, score }: DimensionRowProps) {
       <Text className="text-sm text-text-secondary w-24" numberOfLines={1}>
         {label}
       </Text>
-      <View className="flex-1 h-2 bg-border-subtle rounded-full mx-3 overflow-hidden">
+      <View
+        className="flex-1 h-2 rounded-full mx-3 overflow-hidden"
+        style={{ backgroundColor: 'rgba(255,255,255,0.10)' }}
+      >
         <View
           className="h-full rounded-full"
           style={{ width: barWidth, backgroundColor: barColor }}
         />
       </View>
       <Text
-        className={`text-sm font-bold w-8 text-right ${getScoreColorClass(score)}`}
+        className={`text-base font-black w-8 text-right ${getScoreColorClass(score)}`}
       >
         {score}
       </Text>
@@ -72,10 +76,14 @@ function DimensionRow({ label, score }: DimensionRowProps) {
 
 export default function SummaryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { reviewId } = useLocalSearchParams<{ reviewId: string }>();
   const [review, setReview] = useState<ReviewWithId | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [companions, setCompanions] = useState<{ uid: string; displayName: string }[]>([]);
 
   useEffect(() => {
     if (!reviewId) {
@@ -94,6 +102,36 @@ export default function SummaryScreen() {
       .catch(() => setError('Failed to load review.'))
       .finally(() => setLoading(false));
   }, [reviewId]);
+
+  // Fetch companion display names for "Eaten with" section
+  useEffect(() => {
+    if (!review?.eatenWith?.length) return;
+    const others = review.eatenWith.filter((uid) => uid !== review.userId);
+    if (!others.length) return;
+    Promise.all(
+      others.map(async (uid) => {
+        const profile = await getUserProfile(uid).catch(() => null);
+        return {
+          uid,
+          displayName: (profile as AppUser & { displayName?: string } | null)?.displayName
+            || (profile as AppUser | null)?.email?.split('@')[0]
+            || uid.slice(0, 6),
+        };
+      })
+    ).then(setCompanions).catch(() => {/* silent fail */});
+  }, [review]);
+
+  const handleDelete = async () => {
+    if (!reviewId) return;
+    setDeleting(true);
+    try {
+      await deleteReview(reviewId);
+      router.replace('/(app)');
+    } catch {
+      setDeleting(false);
+      setShowConfirm(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -145,6 +183,12 @@ export default function SummaryScreen() {
           </Text>
           <Text className="text-sm text-text-secondary mt-0.5" numberOfLines={1}>
             {review.restaurantAddress}
+          </Text>
+          <Text className="text-xs text-text-secondary mt-1">
+            Reviewed by{' '}
+            <Text className="text-text-primary font-semibold">
+              {review.userEmail ?? 'Unknown'}
+            </Text>
           </Text>
         </View>
 
@@ -204,6 +248,35 @@ export default function SummaryScreen() {
           })}
         </View>
 
+        {/* Eaten with section */}
+        {companions.length > 0 ? (
+          <View className="mb-6">
+            <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
+              Eaten with
+            </Text>
+            <View className="flex-row flex-wrap">
+              {companions.map((c) => {
+                const initials = c.displayName
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase();
+                return (
+                  <View key={c.uid} className="items-center mr-4 mb-2">
+                    <View className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center">
+                      <Text className="text-xs font-bold text-text-primary">{initials}</Text>
+                    </View>
+                    <Text className="text-xs text-text-secondary mt-1" numberOfLines={1}>
+                      {c.displayName}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
         {/* Back to home button */}
         <Pressable
           onPress={() => router.replace('/(app)')}
@@ -217,6 +290,49 @@ export default function SummaryScreen() {
             Back to Home
           </Text>
         </Pressable>
+
+        {/* Delete review section — only visible to author */}
+        {review.authorId === user?.uid ? (
+          <View className="mt-6 items-center">
+            {!showConfirm ? (
+              <Pressable
+                onPress={() => setShowConfirm(true)}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Delete review"
+              >
+                <Text className="text-sm text-brand-red">Delete review</Text>
+              </Pressable>
+            ) : (
+              <View className="flex-row gap-3 w-full">
+                <Pressable
+                  onPress={() => setShowConfirm(false)}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel delete"
+                  className="flex-1 h-11 bg-bg-card border border-border-subtle rounded-xl items-center justify-center"
+                >
+                  <Text className="text-text-primary font-semibold">Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleDelete}
+                  disabled={deleting}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm delete review"
+                  className="flex-1 h-11 bg-brand-red rounded-xl items-center justify-center"
+                  style={{ opacity: deleting ? 0.6 : 1 }}
+                >
+                  {deleting ? (
+                    <ActivityIndicator color="#F5F5F5" size="small" />
+                  ) : (
+                    <Text className="text-text-inverse font-semibold">Delete</Text>
+                  )}
+                </Pressable>
+              </View>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

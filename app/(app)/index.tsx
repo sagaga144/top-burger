@@ -59,8 +59,18 @@ function getRankStripClass(rank: number): string {
 }
 
 function TopThreeCard({ restaurant, rank }: TopThreeCardProps) {
+  const router = useRouter();
   return (
-    <View
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: '/(app)/restaurant/[restaurantId]' as any,
+          params: { restaurantId: restaurant.id, name: restaurant.name, address: restaurant.address },
+        })
+      }
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`View reviews for ${restaurant.name}`}
       className="rounded-2xl mx-5 mb-2 pl-1 overflow-hidden"
       style={{
         shadowColor: '#000',
@@ -79,7 +89,7 @@ function TopThreeCard({ restaurant, rank }: TopThreeCardProps) {
         reviewCount={restaurant.reviewCount}
         variant="full"
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -241,7 +251,18 @@ export default function HomeScreen() {
           ) : null
         }
         renderItem={({ item, index }) => (
-          <View className="px-5">
+          <Pressable
+            className="px-5"
+            onPress={() =>
+              router.push({
+                pathname: '/(app)/restaurant/[restaurantId]' as any,
+                params: { restaurantId: item.id, name: item.name, address: item.address },
+              })
+            }
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={`View reviews for ${item.name}`}
+          >
             <RestaurantCard
               rank={index + 4}
               name={item.name}
@@ -250,7 +271,7 @@ export default function HomeScreen() {
               reviewCount={item.reviewCount}
               variant="full"
             />
-          </View>
+          </Pressable>
         )}
         refreshControl={
           <RefreshControl

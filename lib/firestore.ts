@@ -10,7 +10,6 @@ import {
   writeBatch,
   runTransaction,
   serverTimestamp,
-  Timestamp,
   onSnapshot,
   deleteDoc,
 } from 'firebase/firestore';
@@ -77,6 +76,21 @@ export function subscribeToRestaurants(
   const q = query(collection(db, 'restaurants'), orderBy('averageScore', 'desc'));
   return onSnapshot(q, (snapshot) => {
     onData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<RestaurantWithId, 'id'>) })));
+  }, onError);
+}
+
+export function subscribeToRestaurantReviews(
+  restaurantId: string,
+  onData: (reviews: ReviewWithId[]) => void,
+  onError: (err: Error) => void
+): () => void {
+  const q = query(
+    collection(db, 'reviews'),
+    where('restaurantId', '==', restaurantId),
+    orderBy('createdAt', 'desc')
+  );
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Review) })));
   }, onError);
 }
 
@@ -351,9 +365,15 @@ export async function saveReviewForMultipleUsers(
     });
   }
 
-  // Upsert restaurant aggregate
+  // Read docs needed for aggregates before batch
   const restaurantRef = doc(db, 'restaurants', placeId);
-  const restaurantSnap = await getDoc(restaurantRef);
+  const authorUserRef = doc(db, 'users', authorUid);
+  const [restaurantSnap, authorSnap] = await Promise.all([
+    getDoc(restaurantRef),
+    getDoc(authorUserRef),
+  ]);
+
+  // Upsert restaurant aggregate
   let newReviewCount = 1;
   let newAverageScore = averageScore;
   if (restaurantSnap.exists()) {
@@ -371,6 +391,28 @@ export async function saveReviewForMultipleUsers(
     reviewCount: newReviewCount,
     averageScore: newAverageScore,
   });
+
+  // Update author user stats
+  let newTotalReviews = 1;
+  let newAvgScoreGiven = averageScore;
+  if (authorSnap.exists()) {
+    const ud = authorSnap.data();
+    const oldTotal: number = ud.totalReviews ?? 0;
+    const oldAvgGiven: number = ud.averageScoreGiven ?? 0;
+    newTotalReviews = oldTotal + 1;
+    newAvgScoreGiven = Math.round(((oldAvgGiven * oldTotal + averageScore) / newTotalReviews) * 10) / 10;
+  }
+  batch.set(
+    authorUserRef,
+    {
+      email: authorEmail,
+      displayNameLower: authorEmail.toLowerCase(),
+      totalReviews: newTotalReviews,
+      averageScoreGiven: newAvgScoreGiven,
+      ...(authorSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+    },
+    { merge: true }
+  );
 
   // Upsert tagged participant user docs so they're discoverable by name search
   for (const uid of taggedUids) {

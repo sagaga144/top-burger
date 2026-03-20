@@ -9,7 +9,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
 
         {/* PWA */}
@@ -31,6 +31,10 @@ export default function Root({ children }: PropsWithChildren) {
           html, body, #root {
             height: 100%;
             background-color: #0F0F0F;
+          }
+          /* Push tab bar above home indicator / browser chrome on all mobile browsers */
+          #root > div > div > div:last-child {
+            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
           }
         `}</style>
       </head>

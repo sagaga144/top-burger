@@ -38,6 +38,7 @@ function AuthGate() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
+      <Stack.Screen name="restaurant/[restaurantId]" />
     </Stack>
   );
 }

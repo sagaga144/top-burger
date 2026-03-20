@@ -9,8 +9,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { subscribeToRestaurantReviews } from '../../../lib/firestore';
-import { ReviewWithId } from '../../../types';
+import { subscribeToRestaurantReviews } from '../../lib/firestore';
+import { ReviewWithId } from '../../types';
 
 function getScoreColorClass(score: number): string {
   if (score >= 8) return 'text-score-high';

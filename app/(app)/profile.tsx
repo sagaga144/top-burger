@@ -168,8 +168,10 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const totalReviews = profile?.totalReviews ?? reviews.length;
-  const avgScore = profile?.averageScoreGiven ?? 0;
+  const totalReviews = reviews.length;
+  const avgScore = reviews.length > 0
+    ? Math.round((reviews.reduce((s, r) => s + r.averageScore, 0) / reviews.length) * 10) / 10
+    : 0;
 
   const listHeader = (
     <View>

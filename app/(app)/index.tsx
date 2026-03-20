@@ -64,7 +64,7 @@ function TopThreeCard({ restaurant, rank }: TopThreeCardProps) {
     <Pressable
       onPress={() =>
         router.push({
-          pathname: '/(app)/restaurant/[restaurantId]' as any,
+          pathname: '/restaurant/[restaurantId]' as any,
           params: { restaurantId: restaurant.id, name: restaurant.name, address: restaurant.address },
         })
       }
@@ -255,7 +255,7 @@ export default function HomeScreen() {
             className="px-5"
             onPress={() =>
               router.push({
-                pathname: '/(app)/restaurant/[restaurantId]' as any,
+                pathname: '/restaurant/[restaurantId]' as any,
                 params: { restaurantId: item.id, name: item.name, address: item.address },
               })
             }

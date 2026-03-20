@@ -55,8 +55,8 @@ function ScoreRow({ label, selectedScore, onSelect }: ScoreRowProps) {
               testID={`score-box-${label}-${n}`}
               className={
                 selected
-                  ? 'w-[34px] h-[34px] rounded-lg items-center justify-center mr-1.5 bg-brand-red'
-                  : 'w-[34px] h-[34px] rounded-lg items-center justify-center mr-1.5 bg-bg-base border border-border-subtle'
+                  ? 'w-[42px] h-[42px] rounded-lg items-center justify-center mr-2 bg-brand-red'
+                  : 'w-[42px] h-[42px] rounded-lg items-center justify-center mr-2 bg-bg-base border border-border-subtle'
               }
             >
               <Text
@@ -203,7 +203,7 @@ export default function RateScreen() {
     <SafeAreaView className="flex-1 bg-bg-base">
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'android' ? 'height' : 'padding'}
       >
         {/* Header */}
         <View className="px-5 pt-4 pb-2 flex-row items-center gap-3">
@@ -286,6 +286,7 @@ export default function RateScreen() {
               accessibilityLabel="Search friends by name"
               testID="friend-search-input"
               className="bg-bg-card border border-border-subtle rounded-xl px-3 h-11 text-text-primary"
+              style={{ fontSize: 16 }}
             />
             {searching ? (
               <View className="absolute right-3 top-3">

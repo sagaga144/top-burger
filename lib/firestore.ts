@@ -253,7 +253,54 @@ export async function getUserProfile(userId: string): Promise<AppUser | null> {
 }
 
 export async function deleteReview(reviewId: string): Promise<void> {
-  await deleteDoc(doc(db, 'reviews', reviewId));
+  const reviewRef = doc(db, 'reviews', reviewId);
+  const reviewSnap = await getDoc(reviewRef);
+  if (!reviewSnap.exists()) return;
+
+  const review = reviewSnap.data();
+  const restaurantId = review.restaurantId as string;
+  const reviewScore = review.averageScore as number;
+  const userId = review.userId as string;
+
+  const restaurantRef = doc(db, 'restaurants', restaurantId);
+  const userRef = doc(db, 'users', userId);
+  const [restaurantSnap, userSnap] = await Promise.all([
+    getDoc(restaurantRef),
+    getDoc(userRef),
+  ]);
+
+  const batch = writeBatch(db);
+  batch.delete(reviewRef);
+
+  // Update restaurant aggregate
+  if (restaurantSnap.exists()) {
+    const r = restaurantSnap.data();
+    const oldCount: number = r.reviewCount ?? 1;
+    const oldAvg: number = r.averageScore ?? reviewScore;
+    const newCount = oldCount - 1;
+    if (newCount <= 0) {
+      batch.delete(restaurantRef);
+    } else {
+      const newAvg = Math.round(((oldAvg * oldCount - reviewScore) / newCount) * 10) / 10;
+      batch.update(restaurantRef, { reviewCount: newCount, averageScore: newAvg });
+    }
+  }
+
+  // Update user stats
+  if (userSnap.exists()) {
+    const u = userSnap.data();
+    const oldTotal: number = u.totalReviews ?? 1;
+    const oldAvgGiven: number = u.averageScoreGiven ?? reviewScore;
+    const newTotal = Math.max(0, oldTotal - 1);
+    if (newTotal === 0) {
+      batch.update(userRef, { totalReviews: 0, averageScoreGiven: 0 });
+    } else {
+      const newAvgGiven = Math.round(((oldAvgGiven * oldTotal - reviewScore) / newTotal) * 10) / 10;
+      batch.update(userRef, { totalReviews: newTotal, averageScoreGiven: newAvgGiven });
+    }
+  }
+
+  await batch.commit();
 }
 
 // ---- User Search ----

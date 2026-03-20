@@ -23,8 +23,8 @@ export default function AppLayout() {
         tabBarActiveTintColor: '#E63946',
         tabBarInactiveTintColor: '#6B7280',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E7EB',
+          backgroundColor: '#1C1C1E',
+          borderTopColor: '#2C2C2E',
           borderTopWidth: 1,
         },
         tabBarLabelStyle: {
@@ -71,7 +71,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="summary/[reviewId]"
         options={{
-          href: null, // hide from tab bar
+          href: null,
           tabBarStyle: { display: 'none' },
         }}
       />

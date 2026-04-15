@@ -1,70 +1,92 @@
+import { useCallback } from 'react';
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-function TabBarIcon({
-  name,
-  color,
-  size,
-}: {
-  name: IoniconsName;
-  color: string;
-  size: number;
-}) {
-  return <Ionicons name={name} size={size} color={color} />;
+function TabBarIcon({ name, focused }: { name: IoniconsName; focused: boolean }) {
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', width: 40, height: 40 }}>
+      {focused && (
+        <View
+          style={{
+            position: 'absolute',
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: '#E63946',
+            opacity: 0.1,
+          }}
+        />
+      )}
+      <Ionicons name={name} size={24} color={focused ? '#E63946' : '#8E8E93'} />
+    </View>
+  );
 }
 
 export default function AppLayout() {
+  const { t } = useTranslation();
+
+  const renderHomeIcon = useCallback(({ focused }: { focused: boolean }) => (
+    <TabBarIcon name={focused ? 'home' : 'home-outline'} focused={focused} />
+  ), []);
+
+  const renderSearchIcon = useCallback(({ focused }: { focused: boolean }) => (
+    <TabBarIcon name={focused ? 'search' : 'search-outline'} focused={focused} />
+  ), []);
+
+  const renderProfileIcon = useCallback(({ focused }: { focused: boolean }) => (
+    <TabBarIcon name={focused ? 'person' : 'person-outline'} focused={focused} />
+  ), []);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#E63946',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarInactiveTintColor: '#8E8E93',
         tabBarStyle: {
           backgroundColor: '#1C1C1E',
           borderTopColor: '#2C2C2E',
           borderTopWidth: 1,
+          paddingTop: 8,
+          paddingBottom: 8,
+          height: 64,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '500',
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Rankings',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="home" color={color} size={size} />
-          ),
+          title: t('tabs.rankings'),
+          tabBarIcon: renderHomeIcon,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Rate',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="search" color={color} size={size} />
-          ),
+          title: t('tabs.rate'),
+          tabBarIcon: renderSearchIcon,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="person" color={color} size={size} />
-          ),
+          title: t('tabs.profile'),
+          tabBarIcon: renderProfileIcon,
         }}
       />
       {/* Stack screens that hide tab bar */}
       <Tabs.Screen
         name="rate/[placeId]"
         options={{
-          href: null, // hide from tab bar
+          href: null,
           tabBarStyle: { display: 'none' },
         }}
       />

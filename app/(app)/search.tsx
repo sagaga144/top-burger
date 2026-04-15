@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { searchRestaurantsInIsrael } from '../../lib/places';
 import { PlaceResult } from '../../types';
@@ -54,6 +55,7 @@ interface SelectedCardProps {
 }
 
 function SelectedCard({ place, onClear, onStartRating }: SelectedCardProps) {
+  const { t } = useTranslation();
   return (
     <View className="mb-4">
       <View
@@ -95,12 +97,12 @@ function SelectedCard({ place, onClear, onStartRating }: SelectedCardProps) {
         onPress={onStartRating}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Start Rating"
+        accessibilityLabel={t('search.startRating')}
         testID="start-rating-button"
         className="bg-brand-red rounded-xl h-13 items-center justify-center mt-3"
       >
         <Text className="text-text-inverse font-bold text-base">
-          Start Rating
+          {t('search.startRating')}
         </Text>
       </Pressable>
     </View>
@@ -124,6 +126,7 @@ function ManualEntryForm({
   onSubmit,
   onCancel,
 }: ManualEntryFormProps) {
+  const { t } = useTranslation();
   const isSubmitEnabled = name.trim().length > 0;
 
   return (
@@ -141,7 +144,7 @@ function ManualEntryForm({
         {/* Form header */}
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-base font-bold text-text-primary">
-            Enter manually
+            {t('search.manualEntry')}
           </Text>
           <Pressable
             onPress={onCancel}
@@ -160,7 +163,7 @@ function ManualEntryForm({
           <TextInput
             value={name}
             onChangeText={onChangeName}
-            placeholder="Restaurant name (required)"
+            placeholder={t('search.restaurantNameRequired')}
             placeholderTextColor="#8E8E93"
             autoCapitalize="words"
             returnKeyType="next"
@@ -174,7 +177,7 @@ function ManualEntryForm({
           <TextInput
             value={address}
             onChangeText={onChangeAddress}
-            placeholder="Address (optional)"
+            placeholder={t('search.addressOptional')}
             placeholderTextColor="#8E8E93"
             autoCapitalize="words"
             returnKeyType="done"
@@ -190,7 +193,7 @@ function ManualEntryForm({
         onPress={isSubmitEnabled ? onSubmit : undefined}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Start Rating"
+        accessibilityLabel={t('search.startRating')}
         accessibilityState={{ disabled: !isSubmitEnabled }}
         testID="manual-entry-submit"
         className={`rounded-xl h-13 items-center justify-center mt-3 ${
@@ -207,7 +210,7 @@ function ManualEntryForm({
             isSubmitEnabled ? 'text-text-inverse' : 'text-text-secondary'
           }`}
         >
-          Start Rating
+          {t('search.startRating')}
         </Text>
       </Pressable>
     </View>
@@ -220,18 +223,19 @@ interface CantFindItTriggerProps {
 }
 
 function CantFindItTrigger({ onPress }: CantFindItTriggerProps) {
+  const { t } = useTranslation();
   return (
     <View className="items-center py-4">
       <Pressable
         onPress={onPress}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Can't find it? Enter manually"
+        accessibilityLabel={`${t('search.cantFindIt')} ${t('search.manualEntry')}`}
         testID="cant-find-it-trigger"
       >
         <Text className="text-sm text-text-secondary">
-          {"Can't find it? "}
-          <Text className="text-brand-red font-semibold">Enter manually</Text>
+          {t('search.cantFindIt') + ' '}
+          <Text className="text-brand-red font-semibold">{t('search.manualEntry')}</Text>
         </Text>
       </Pressable>
     </View>
@@ -240,6 +244,7 @@ function CantFindItTrigger({ onPress }: CantFindItTriggerProps) {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
@@ -346,10 +351,10 @@ export default function SearchScreen() {
         {/* Header */}
         <View className="pt-4 pb-4">
           <Text className="text-xl font-black text-text-primary">
-            Rate a Restaurant
+            {t('search.title')}
           </Text>
           <Text className="text-sm text-text-secondary mt-0.5">
-            Search for a burger place in Israel
+            {t('search.subtitle')}
           </Text>
         </View>
 
@@ -359,7 +364,7 @@ export default function SearchScreen() {
           <TextInput
             value={query}
             onChangeText={handleQueryChange}
-            placeholder="Search restaurants..."
+            placeholder={t('search.placeholder')}
             placeholderTextColor="#8E8E93"
             autoCapitalize="none"
             returnKeyType="search"
@@ -411,7 +416,7 @@ export default function SearchScreen() {
         {searchState === 'loading' ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#E63946" />
-            <Text className="text-sm text-text-secondary mt-3">Searching...</Text>
+            <Text className="text-sm text-text-secondary mt-3">{t('search.searching')}</Text>
           </View>
         ) : null}
 
@@ -420,10 +425,10 @@ export default function SearchScreen() {
           results.length === 0 ? (
             <View className="flex-1 items-center justify-center">
               <Text className="text-base font-semibold text-text-primary mb-1">
-                No restaurants found
+                {t('search.noResults')}
               </Text>
               <Text className="text-sm text-text-secondary text-center">
-                Try a different search term
+                {t('search.tryDifferent')}
               </Text>
               <CantFindItTrigger onPress={handleOpenManual} />
             </View>
@@ -447,10 +452,10 @@ export default function SearchScreen() {
           <View className="flex-1 items-center justify-center">
             <Text className="text-4xl mb-4">🔍</Text>
             <Text className="text-base font-semibold text-text-primary mb-1">
-              Find a burger joint
+              {t('search.findBurger')}
             </Text>
             <Text className="text-sm text-text-secondary text-center">
-              Search by name or location to start rating
+              {t('search.searchByName')}
             </Text>
             <CantFindItTrigger onPress={handleOpenManual} />
           </View>

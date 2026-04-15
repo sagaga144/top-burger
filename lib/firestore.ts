@@ -11,7 +11,6 @@ import {
   runTransaction,
   serverTimestamp,
   onSnapshot,
-  deleteDoc,
 } from 'firebase/firestore';
 import {
   ref,
@@ -19,7 +18,7 @@ import {
   getDownloadURL,
 } from 'firebase/storage';
 import { Platform } from 'react-native';
-import { db, storage } from './firebase';
+import { db, storage, auth } from './firebase';
 import {
   Review,
   ReviewScores,
@@ -49,6 +48,9 @@ async function uriToBlob(uri: string): Promise<Blob> {
 
 function computeAverage(scores: ReviewScores): number {
   const values = Object.values(scores) as number[];
+  if (values.some((v) => !Number.isInteger(v) || v < 1 || v > 10)) {
+    throw new Error('Each score must be an integer between 1 and 10.');
+  }
   const sum = values.reduce((a, b) => a + b, 0);
   return Math.round((sum / values.length) * 10) / 10;
 }
@@ -58,7 +60,8 @@ function computeAverage(scores: ReviewScores): number {
 export async function getRestaurants(): Promise<RestaurantWithId[]> {
   const q = query(
     collection(db, 'restaurants'),
-    orderBy('averageScore', 'desc')
+    orderBy('averageScore', 'desc'),
+    limit(100)
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({
@@ -73,7 +76,7 @@ export function subscribeToRestaurants(
   onData: (restaurants: RestaurantWithId[]) => void,
   onError: (err: Error) => void
 ): () => void {
-  const q = query(collection(db, 'restaurants'), orderBy('averageScore', 'desc'));
+  const q = query(collection(db, 'restaurants'), orderBy('averageScore', 'desc'), limit(100));
   return onSnapshot(q, (snapshot) => {
     onData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<RestaurantWithId, 'id'>) })));
   }, onError);
@@ -87,7 +90,8 @@ export function subscribeToRestaurantReviews(
   const q = query(
     collection(db, 'reviews'),
     where('restaurantId', '==', restaurantId),
-    orderBy('createdAt', 'desc')
+    orderBy('createdAt', 'desc'),
+    limit(50)
   );
   return onSnapshot(q, (snapshot) => {
     onData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Review) })));
@@ -102,7 +106,8 @@ export function subscribeToUserReviews(
   const q = query(
     collection(db, 'reviews'),
     where('userId', '==', userId),
-    orderBy('createdAt', 'desc')
+    orderBy('createdAt', 'desc'),
+    limit(50)
   );
   return onSnapshot(q, (snapshot) => {
     onData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Review) })));
@@ -143,6 +148,10 @@ export interface SaveReviewParams {
 }
 
 export async function saveReview(params: SaveReviewParams): Promise<string> {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+  if (currentUid !== params.userId) throw new Error('Not authorized');
+
   const {
     placeId,
     restaurantName,
@@ -232,7 +241,7 @@ export async function saveReview(params: SaveReviewParams): Promise<string> {
       userRef,
       {
         email: userEmail,
-        displayNameLower: (userEmail || '').toLowerCase(),
+        displayNameLower: (userData.exists() ? userData.data().displayName || userEmail : userEmail).toLowerCase(),
         totalReviews: newTotalReviews,
         averageScoreGiven: newAvgScoreGiven,
         ...(userData.exists() ? {} : { createdAt: serverTimestamp() }),
@@ -253,11 +262,17 @@ export async function getUserProfile(userId: string): Promise<AppUser | null> {
 }
 
 export async function deleteReview(reviewId: string): Promise<void> {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+
   const reviewRef = doc(db, 'reviews', reviewId);
   const reviewSnap = await getDoc(reviewRef);
   if (!reviewSnap.exists()) return;
 
   const review = reviewSnap.data();
+  if (currentUid !== review.userId && currentUid !== review.authorId) {
+    throw new Error('Not authorized to delete this review');
+  }
   const restaurantId = review.restaurantId as string;
   const reviewScore = review.averageScore as number;
   const userId = review.userId as string;
@@ -367,6 +382,10 @@ export interface SaveReviewForMultipleUsersParams {
 export async function saveReviewForMultipleUsers(
   params: SaveReviewForMultipleUsersParams
 ): Promise<void> {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+  if (currentUid !== params.authorUid) throw new Error('Not authorized');
+
   const {
     authorUid,
     authorEmail,
@@ -453,7 +472,7 @@ export async function saveReviewForMultipleUsers(
     authorUserRef,
     {
       email: authorEmail,
-      displayNameLower: authorEmail.toLowerCase(),
+      displayNameLower: (authorSnap.exists() ? authorSnap.data().displayName || authorEmail : authorEmail).toLowerCase(),
       totalReviews: newTotalReviews,
       averageScoreGiven: newAvgScoreGiven,
       ...(authorSnap.exists() ? {} : { createdAt: serverTimestamp() }),

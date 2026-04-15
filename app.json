@@ -22,10 +22,7 @@
         "foregroundImage": "./assets/icon.jpg",
         "backgroundColor": "#FAFAF8"
       },
-      "package": "com.topburger.app",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "package": "com.topburger.app"
     },
     "web": {
       "bundler": "metro",
@@ -42,7 +39,8 @@
           "cameraPermission": "Top Burger needs access to your camera to take burger photos."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

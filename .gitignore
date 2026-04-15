@@ -5,3 +5,8 @@
 expo-env.d.ts
 # @end expo-cli
 node_modules
+.env
+.env.local
+
+# Claude Code worktrees (temporary isolated branches)
+.claude/worktrees/

@@ -29,6 +29,14 @@ function getRankTextClass(rank: number): string {
   return 'text-text-primary';
 }
 
+const cardShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.06,
+  shadowRadius: 4,
+  elevation: 2,
+};
+
 interface RankBadgeProps {
   rank: number;
 }
@@ -54,13 +62,6 @@ export default function RestaurantCard({
   variant,
   date,
 }: RestaurantCardProps) {
-  const cardShadow = {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  };
 
   if (variant === 'compact') {
     return (

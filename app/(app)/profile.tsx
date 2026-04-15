@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../store/authStore';
 import { subscribeToUserReviews, getUserProfile } from '../../lib/firestore';
 import { ReviewWithId, AppUser } from '../../types';
 import RestaurantCard from '../../components/RestaurantCard';
+import LanguageToggle from '../../components/LanguageToggle';
 
 function getInitial(email: string): string {
   return email.charAt(0).toUpperCase();
@@ -46,6 +48,7 @@ interface UserCardProps {
 }
 
 function UserCard({ email }: UserCardProps) {
+  const { t } = useTranslation();
   return (
     <View
       className="bg-bg-card rounded-2xl px-5 py-5 mx-5 mt-4 mb-3 flex-row items-center"
@@ -66,7 +69,7 @@ function UserCard({ email }: UserCardProps) {
         <Text className="text-base font-bold text-text-primary" numberOfLines={1}>
           {email}
         </Text>
-        <Text className="text-sm text-text-secondary mt-0.5">Member</Text>
+        <Text className="text-sm text-text-secondary mt-0.5">{t('profile.member')}</Text>
       </View>
     </View>
   );
@@ -97,25 +100,55 @@ function StatCard({ label, value, highlight }: StatCardProps) {
 }
 
 function EmptyReviews() {
+  const { t } = useTranslation();
   return (
     <View className="items-center py-12 px-8">
       <Text className="text-5xl mb-4">🍔</Text>
       <Text className="text-base font-bold text-text-primary mb-1">
-        No reviews yet
+        {t('profile.noReviews')}
       </Text>
       <Text className="text-sm text-text-secondary text-center">
-        Start rating burger joints from the Rate tab!
+        {t('profile.startRating')}
       </Text>
     </View>
   );
 }
 
+interface ReviewListItemProps {
+  item: ReviewWithId;
+  onPress: (id: string) => void;
+}
+
+const ReviewListItem = React.memo(function ReviewListItem({ item, onPress }: ReviewListItemProps) {
+  return (
+    <Pressable
+      className="px-5"
+      onPress={() => onPress(item.id)}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`View review for ${item.restaurantName}`}
+    >
+      <RestaurantCard
+        name={item.restaurantName}
+        address={item.restaurantAddress}
+        averageScore={item.averageScore}
+        variant="compact"
+        date={formatDate(item.createdAt as Parameters<typeof formatDate>[0])}
+      />
+    </Pressable>
+  );
+});
+
 export default function ProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, signOutUser } = useAuth();
   const [reviews, setReviews] = useState<ReviewWithId[]>([]);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // suppress unused variable warning — profile fetched for future use
+  void profile;
 
   const firstEmit = useRef(true);
 
@@ -149,7 +182,7 @@ export default function ProfileScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
     if (Platform.OS === 'web') {
       if (window.confirm('Sign out of Top Burger?')) {
         signOutUser();
@@ -164,57 +197,76 @@ export default function ProfileScreen() {
         },
       ]);
     }
-  };
+  }, [signOutUser]);
 
-  if (!user) return null;
+  const totalReviews = useMemo(() => reviews.length, [reviews]);
+  const avgScore = useMemo(
+    () => reviews.length > 0
+      ? Math.round((reviews.reduce((s, r) => s + r.averageScore, 0) / reviews.length) * 10) / 10
+      : 0,
+    [reviews]
+  );
 
-  const totalReviews = reviews.length;
-  const avgScore = reviews.length > 0
-    ? Math.round((reviews.reduce((s, r) => s + r.averageScore, 0) / reviews.length) * 10) / 10
-    : 0;
-
-  const listHeader = (
+  const listHeader = useMemo(() => (
     <View>
-      <UserCard email={user.email ?? ''} />
+      <UserCard email={user?.email ?? ''} />
 
       {/* Stats row */}
       <View className="flex-row px-5 gap-3 mb-4">
         <StatCard
-          label="Reviews"
+          label={t('profile.totalReviews')}
           value={String(totalReviews)}
           highlight
         />
         <StatCard
-          label="Avg Score Given"
+          label={t('profile.avgScore')}
           value={avgScore > 0 ? avgScore.toFixed(1) : '—'}
         />
+      </View>
+
+      {/* Language setting */}
+      <View className="bg-bg-card rounded-xl p-4 border border-border-subtle mb-4 mx-5">
+        <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+          {t('profile.language')}
+        </Text>
+        <LanguageToggle />
       </View>
 
       {/* Section label */}
       {reviews.length > 0 ? (
         <View className="px-5 pb-2">
           <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-            YOUR REVIEWS
+            {t('profile.yourReviews')}
           </Text>
         </View>
       ) : null}
     </View>
-  );
+  ), [user, totalReviews, avgScore, reviews.length, t]);
 
-  const listFooter = (
+  const listFooter = useMemo(() => (
     <View className="px-5 pt-4 pb-8">
       <Pressable
         onPress={handleSignOut}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Sign out"
+        accessibilityLabel={t('profile.signOut')}
         testID="sign-out-button"
         className="h-13 rounded-xl border border-brand-red items-center justify-center"
       >
-        <Text className="text-brand-red font-semibold text-base">Sign Out</Text>
+        <Text className="text-brand-red font-semibold text-base">{t('profile.signOut')}</Text>
       </Pressable>
     </View>
-  );
+  ), [handleSignOut, t]);
+
+  const handleReviewPress = useCallback((id: string) => {
+    router.push({ pathname: '/(app)/summary/[reviewId]', params: { reviewId: id } });
+  }, [router]);
+
+  const renderItem = useCallback(({ item }: { item: ReviewWithId }) => (
+    <ReviewListItem item={item} onPress={handleReviewPress} />
+  ), [handleReviewPress]);
+
+  if (!user) return null;
 
   if (loading) {
     return (
@@ -235,28 +287,7 @@ export default function ProfileScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={<EmptyReviews />}
         ListFooterComponent={listFooter}
-        renderItem={({ item }) => (
-          <Pressable
-            className="px-5"
-            onPress={() =>
-              router.push({
-                pathname: '/(app)/summary/[reviewId]',
-                params: { reviewId: item.id },
-              })
-            }
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={`View review for ${item.restaurantName}`}
-          >
-            <RestaurantCard
-              name={item.restaurantName}
-              address={item.restaurantAddress}
-              averageScore={item.averageScore}
-              variant="compact"
-              date={formatDate(item.createdAt as Parameters<typeof formatDate>[0])}
-            />
-          </Pressable>
-        )}
+        renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 0 }}
       />

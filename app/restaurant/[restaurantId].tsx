@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { subscribeToRestaurantReviews } from '../../lib/firestore';
 import { ReviewWithId } from '../../types';
+import { useAuth } from '../../store/authStore';
 
 function getScoreColorClass(score: number): string {
   if (score >= 8) return 'text-score-high';
@@ -73,8 +74,22 @@ function ReviewRow({ review, onPress }: ReviewRowProps) {
   );
 }
 
+interface ReviewListItemProps {
+  item: ReviewWithId;
+  onPress: (id: string) => void;
+}
+
+const ReviewListItem = React.memo(function ReviewListItem({ item, onPress }: ReviewListItemProps) {
+  return (
+    <View className="px-5">
+      <ReviewRow review={item} onPress={() => onPress(item.id)} />
+    </View>
+  );
+});
+
 export default function RestaurantDetailScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { restaurantId, name, address } = useLocalSearchParams<{
     restaurantId: string;
     name: string;
@@ -110,9 +125,25 @@ export default function RestaurantDetailScreen() {
     return () => unsubscribe();
   }, [restaurantId]);
 
-  const avgScore = reviews.length
-    ? Math.round((reviews.reduce((s, r) => s + r.averageScore, 0) / reviews.length) * 10) / 10
-    : null;
+  const avgScore = useMemo(
+    () => reviews.length
+      ? Math.round((reviews.reduce((s, r) => s + r.averageScore, 0) / reviews.length) * 10) / 10
+      : null,
+    [reviews]
+  );
+
+  const handleReviewPress = useCallback((id: string) => {
+    router.push({
+      pathname: '/(app)/summary/[reviewId]',
+      params: { reviewId: id },
+    });
+  }, [router]);
+
+  const renderItem = useCallback(({ item }: { item: ReviewWithId }) => (
+    <ReviewListItem item={item} onPress={handleReviewPress} />
+  ), [handleReviewPress]);
+
+  if (!user) return null;
 
   return (
     <SafeAreaView className="flex-1 bg-bg-base">
@@ -166,19 +197,7 @@ export default function RestaurantDetailScreen() {
         <FlatList
           data={reviews}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View className="px-5">
-              <ReviewRow
-                review={item}
-                onPress={() =>
-                  router.push({
-                    pathname: '/(app)/summary/[reviewId]',
-                    params: { reviewId: item.id },
-                  })
-                }
-              />
-            </View>
-          )}
+          renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
         />

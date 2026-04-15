@@ -1,7 +1,9 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   ReactNode,
 } from 'react';
@@ -32,12 +34,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const signOutUser = async () => {
+  const signOutUser = useCallback(async () => {
     await signOut(auth);
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({ user, loading, signOutUser }),
+    [user, loading, signOutUser]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOutUser }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,9 +6,11 @@ import {
   Pressable,
   Image,
   ActivityIndicator,
+  type DimensionValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { getReview, deleteReview, getUserProfile } from '../../../lib/firestore';
 import { ReviewWithId, AppUser } from '../../../types';
 import { RATING_QUESTIONS } from '../../../constants/ratingQuestions';
@@ -49,7 +51,7 @@ interface DimensionRowProps {
 
 function DimensionRow({ label, score }: DimensionRowProps) {
   const barColor = getScoreBarColor(score);
-  const barWidth = `${(score / 10) * 100}%`;
+  const barWidth = `${(score / 10) * 100}%` as DimensionValue;
 
   return (
     <View className="flex-row items-center mb-3">
@@ -76,6 +78,7 @@ function DimensionRow({ label, score }: DimensionRowProps) {
 
 export default function SummaryScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { reviewId } = useLocalSearchParams<{ reviewId: string }>();
   const [review, setReview] = useState<ReviewWithId | null>(null);
@@ -87,21 +90,21 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     if (!reviewId) {
-      setError('Review not found.');
+      setError(t('summary.reviewNotFound'));
       setLoading(false);
       return;
     }
     getReview(reviewId)
       .then((data) => {
         if (!data) {
-          setError('Review not found.');
+          setError(t('summary.reviewNotFound'));
         } else {
           setReview(data);
         }
       })
-      .catch(() => setError('Failed to load review.'))
+      .catch(() => setError(t('summary.failedLoad')))
       .finally(() => setLoading(false));
-  }, [reviewId]);
+  }, [reviewId, t]);
 
   // Fetch companion display names for "Eaten with" section
   useEffect(() => {
@@ -145,16 +148,16 @@ export default function SummaryScreen() {
     return (
       <SafeAreaView className="flex-1 bg-bg-base items-center justify-center px-8">
         <Text className="text-base text-text-secondary text-center mb-6">
-          {error ?? 'Review not found.'}
+          {error ?? t('summary.reviewNotFound')}
         </Text>
         <Pressable
           onPress={() => router.replace('/(app)')}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Back to Home"
+          accessibilityLabel={t('summary.backHome')}
           className="bg-brand-red rounded-xl h-13 px-8 items-center justify-center"
         >
-          <Text className="text-text-inverse font-bold">Back to Home</Text>
+          <Text className="text-text-inverse font-bold">{t('summary.backHome')}</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -170,7 +173,11 @@ export default function SummaryScreen() {
       >
         {/* Header row */}
         <View className="flex-row items-center justify-between pt-4 pb-4">
-          <Text className="text-xl font-black text-text-primary">Your Review</Text>
+          <Text className="text-xl font-black text-text-primary">
+            {user?.uid === review.userId || user?.uid === review.authorId
+              ? t('summary.yourReview')
+              : t('summary.reviewDetail')}
+          </Text>
           {dateString ? (
             <Text className="text-sm text-text-secondary">{dateString}</Text>
           ) : null}
@@ -184,12 +191,14 @@ export default function SummaryScreen() {
           <Text className="text-sm text-text-secondary mt-0.5" numberOfLines={1}>
             {review.restaurantAddress}
           </Text>
-          <Text className="text-xs text-text-secondary mt-1">
-            Reviewed by{' '}
-            <Text className="text-text-primary font-semibold">
-              {review.userEmail ?? 'Unknown'}
+          {(user?.uid === review.userId || user?.uid === review.authorId) && review.userEmail ? (
+            <Text className="text-xs text-text-secondary mt-1">
+              {t('summary.reviewedBy')}{' '}
+              <Text className="text-text-primary font-semibold">
+                {review.userEmail}
+              </Text>
             </Text>
-          </Text>
+          ) : null}
         </View>
 
         {/* Big score block */}
@@ -204,7 +213,7 @@ export default function SummaryScreen() {
           }}
         >
           <Text className="text-xs font-bold text-text-secondary tracking-widest mb-3">
-            AVERAGE SCORE
+            {t('summary.averageScore')}
           </Text>
           <View className="flex-row items-end">
             <Text
@@ -238,12 +247,12 @@ export default function SummaryScreen() {
           }}
         >
           <Text className="text-xs font-bold text-text-secondary tracking-widest mb-4">
-            BREAKDOWN
+            {t('summary.breakdown')}
           </Text>
           {RATING_QUESTIONS.map((q) => {
             const score = review.scores[q.key];
             return (
-              <DimensionRow key={q.key} label={q.label} score={score} />
+              <DimensionRow key={q.key} label={t(q.labelKey)} score={score} />
             );
           })}
         </View>
@@ -252,7 +261,7 @@ export default function SummaryScreen() {
         {companions.length > 0 ? (
           <View className="mb-6">
             <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
-              Eaten with
+              {t('summary.ateWith')}
             </Text>
             <View className="flex-row flex-wrap">
               {companions.map((c) => {
@@ -282,12 +291,12 @@ export default function SummaryScreen() {
           onPress={() => router.replace('/(app)')}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Back to Home"
+          accessibilityLabel={t('summary.backHome')}
           testID="back-to-home-button"
           className="bg-brand-red rounded-xl h-13 items-center justify-center"
         >
           <Text className="text-text-inverse font-bold text-base">
-            Back to Home
+            {t('summary.backHome')}
           </Text>
         </Pressable>
 
@@ -299,9 +308,9 @@ export default function SummaryScreen() {
                 onPress={() => setShowConfirm(true)}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Delete review"
+                accessibilityLabel={t('summary.deleteReview')}
               >
-                <Text className="text-sm text-brand-red">Delete review</Text>
+                <Text className="text-sm text-brand-red">{t('summary.deleteReview')}</Text>
               </Pressable>
             ) : (
               <View className="flex-row gap-3 w-full">
@@ -309,24 +318,24 @@ export default function SummaryScreen() {
                   onPress={() => setShowConfirm(false)}
                   accessible
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel delete"
+                  accessibilityLabel={t('summary.cancel')}
                   className="flex-1 h-11 bg-bg-card border border-border-subtle rounded-xl items-center justify-center"
                 >
-                  <Text className="text-text-primary font-semibold">Cancel</Text>
+                  <Text className="text-text-primary font-semibold">{t('summary.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleDelete}
                   disabled={deleting}
                   accessible
                   accessibilityRole="button"
-                  accessibilityLabel="Confirm delete review"
+                  accessibilityLabel={t('summary.delete')}
                   className="flex-1 h-11 bg-brand-red rounded-xl items-center justify-center"
                   style={{ opacity: deleting ? 0.6 : 1 }}
                 >
                   {deleting ? (
                     <ActivityIndicator color="#F5F5F5" size="small" />
                   ) : (
-                    <Text className="text-text-inverse font-semibold">Delete</Text>
+                    <Text className="text-text-inverse font-semibold">{t('summary.delete')}</Text>
                   )}
                 </Pressable>
               </View>

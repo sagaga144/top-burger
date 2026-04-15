@@ -16,31 +16,34 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { auth } from '../../lib/firebase';
 import { db } from '../../lib/firebase';
+import type { TFunction } from 'i18next';
 
 type Mode = 'login' | 'signup';
 
-function getFirebaseErrorMessage(code: string): string {
+function getFirebaseErrorMessage(code: string, t: TFunction): string {
   switch (code) {
     case 'auth/invalid-email':
-      return 'Please enter a valid email address.';
+      return t('login.errors.invalidEmail');
     case 'auth/user-not-found':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return 'Invalid email or password.';
+      return t('login.errors.userNotFound');
     case 'auth/email-already-in-use':
-      return 'This email is already registered.';
+      return t('login.errors.emailInUse');
     case 'auth/weak-password':
-      return 'Password must be at least 6 characters.';
+      return t('login.errors.weakPassword');
     case 'auth/too-many-requests':
-      return 'Too many attempts. Please try again later.';
+      return t('login.errors.tooManyRequests');
     default:
-      return 'Something went wrong. Please try again.';
+      return t('login.errors.default');
   }
 }
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -58,17 +61,17 @@ export default function LoginScreen() {
     setResetSent(false);
 
     if (!email.trim() || !password.trim()) {
-      setError('Please fill in all fields.');
+      setError(t('login.fillAllFields'));
       return;
     }
 
     if (mode === 'signup' && !displayName.trim()) {
-      setError('Please enter a display name.');
+      setError(t('login.enterDisplayName'));
       return;
     }
 
     if (mode === 'signup' && password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('login.passwordsMismatch'));
       return;
     }
 
@@ -89,7 +92,7 @@ export default function LoginScreen() {
       // Auth gate in _layout.tsx handles navigation
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
-      setError(getFirebaseErrorMessage(firebaseError.code ?? ''));
+      setError(getFirebaseErrorMessage(firebaseError.code ?? '', t));
     } finally {
       setLoading(false);
     }
@@ -150,7 +153,7 @@ export default function LoginScreen() {
               onPress={() => switchMode('login')}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Log In tab"
+              accessibilityLabel={t('login.login')}
               accessibilityState={{ selected: mode === 'login' }}
               className={[
                 'flex-1 py-2.5 rounded-lg items-center',
@@ -175,14 +178,14 @@ export default function LoginScreen() {
                     : 'text-text-secondary'
                 }
               >
-                Log In
+                {t('login.login')}
               </Text>
             </Pressable>
             <Pressable
               onPress={() => switchMode('signup')}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Sign Up tab"
+              accessibilityLabel={t('login.signup')}
               accessibilityState={{ selected: mode === 'signup' }}
               className={[
                 'flex-1 py-2.5 rounded-lg items-center',
@@ -207,7 +210,7 @@ export default function LoginScreen() {
                     : 'text-text-secondary'
                 }
               >
-                Sign Up
+                {t('login.signup')}
               </Text>
             </Pressable>
           </View>
@@ -215,11 +218,11 @@ export default function LoginScreen() {
           {/* Email field */}
           <View className="mb-3">
             <Text className="text-sm font-medium text-text-secondary mb-1.5">
-              Email
+              {t('login.email')}
             </Text>
             <TextInput
               value={email}
-              onChangeText={(t) => { setEmail(t); clearError(); }}
+              onChangeText={(tx) => { setEmail(tx); clearError(); }}
               placeholder="your@email.com"
               placeholderTextColor="#4B5563"
               keyboardType="email-address"
@@ -235,15 +238,16 @@ export default function LoginScreen() {
           {mode === 'signup' ? (
             <View className="mb-3">
               <Text className="text-sm font-medium text-text-secondary mb-1.5">
-                Display Name
+                {t('login.displayName')}
               </Text>
               <TextInput
                 value={displayName}
-                onChangeText={(t) => { setDisplayName(t); clearError(); }}
+                onChangeText={(tx) => { setDisplayName(tx); clearError(); }}
                 placeholder="Your name (visible to others)"
                 placeholderTextColor="#4B5563"
                 autoCapitalize="words"
                 returnKeyType="next"
+                maxLength={50}
                 testID="display-name-input"
                 className="bg-bg-card border border-border-subtle rounded-xl px-4 h-13 text-text-primary text-base"
               />
@@ -253,12 +257,12 @@ export default function LoginScreen() {
           {/* Password field */}
           <View className="mb-3">
             <Text className="text-sm font-medium text-text-secondary mb-1.5">
-              Password
+              {t('login.password')}
             </Text>
             <View className="flex-row bg-bg-card border border-border-subtle rounded-xl px-4 h-13 items-center">
               <TextInput
                 value={password}
-                onChangeText={(t) => { setPassword(t); clearError(); }}
+                onChangeText={(tx) => { setPassword(tx); clearError(); }}
                 placeholder="••••••••"
                 placeholderTextColor="#4B5563"
                 secureTextEntry={!showPassword}
@@ -286,11 +290,11 @@ export default function LoginScreen() {
           {mode === 'signup' ? (
             <View className="mb-3">
               <Text className="text-sm font-medium text-text-secondary mb-1.5">
-                Confirm Password
+                {t('login.confirmPassword')}
               </Text>
               <TextInput
                 value={confirmPassword}
-                onChangeText={(t) => { setConfirmPassword(t); clearError(); }}
+                onChangeText={(tx) => { setConfirmPassword(tx); clearError(); }}
                 placeholder="••••••••"
                 placeholderTextColor="#4B5563"
                 secureTextEntry={!showPassword}
@@ -316,7 +320,7 @@ export default function LoginScreen() {
           {resetSent ? (
             <View className="bg-success-bg border border-success-border rounded-xl px-4 py-3 mb-4">
               <Text className="text-success-text text-sm">
-                Password reset email sent. Check your inbox.
+                {t('login.passwordResetSent')}
               </Text>
             </View>
           ) : null}
@@ -327,7 +331,7 @@ export default function LoginScreen() {
             disabled={loading}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={mode === 'login' ? 'Log In' : 'Create Account'}
+            accessibilityLabel={mode === 'login' ? t('login.loginButton') : t('login.signupButton')}
             testID="submit-button"
             className="bg-brand-red rounded-xl h-13 items-center justify-center mt-2"
             style={{ opacity: loading ? 0.7 : 1 }}
@@ -336,7 +340,7 @@ export default function LoginScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text className="text-text-inverse font-bold text-base">
-                {mode === 'login' ? 'Log In' : 'Create Account'}
+                {mode === 'login' ? t('login.loginButton') : t('login.signupButton')}
               </Text>
             )}
           </Pressable>
@@ -347,10 +351,10 @@ export default function LoginScreen() {
               onPress={handleForgotPassword}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Forgot password"
+              accessibilityLabel={t('login.forgotPassword')}
               className="items-center mt-4"
             >
-              <Text className="text-sm text-brand-red">Forgot Password?</Text>
+              <Text className="text-sm text-brand-red">{t('login.forgotPassword')}</Text>
             </Pressable>
           ) : null}
         </ScrollView>

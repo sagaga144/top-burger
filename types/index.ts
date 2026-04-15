@@ -59,8 +59,8 @@ export interface PlaceResult {
 export interface RatingQuestion {
   id: number;
   key: keyof ReviewScores;
-  label: string;
-  question: string;
+  labelKey: string;
+  questionKey: string;
   hasPhotoUpload?: boolean;
 }
 

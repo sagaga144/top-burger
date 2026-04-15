@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import RestaurantCard from '../../components/RestaurantCard';
 import { subscribeToRestaurants, getRestaurants } from '../../lib/firestore';
 import { RestaurantWithId } from '../../types';
@@ -23,11 +24,12 @@ function LiveBadge() {
 }
 
 function HomeHeader() {
+  const { t } = useTranslation();
   return (
     <View className="px-5 pt-4 pb-3 flex-row items-center justify-between">
       <View>
-        <Text className="text-xl font-black text-brand-red">TOP BURGER</Text>
-        <Text className="text-xs text-text-secondary">Community Rankings</Text>
+        <Text className="text-xl font-black text-brand-red">{t('leaderboard.title')}</Text>
+        <Text className="text-xs text-text-secondary">{t('leaderboard.subtitle')}</Text>
       </View>
       <LiveBadge />
     </View>
@@ -94,35 +96,73 @@ function TopThreeCard({ restaurant, rank }: TopThreeCardProps) {
 }
 
 function EmptyState({ onRatePress }: { onRatePress: () => void }) {
+  const { t } = useTranslation();
   return (
     <View className="flex-1 items-center justify-center px-8 py-16">
       <Text className="text-5xl mb-4">🍔</Text>
       <Text className="text-lg font-bold text-text-primary mb-2">
-        No rankings yet
+        {t('leaderboard.noRankings')}
       </Text>
       <Text className="text-sm text-text-secondary text-center">
-        Be the first to rate a restaurant!
+        {t('leaderboard.beFirst')}
       </Text>
       <Pressable
         onPress={onRatePress}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Rate a place"
+        accessibilityLabel={t('leaderboard.ratePlace')}
         className="bg-brand-red rounded-xl h-13 px-8 items-center justify-center mt-4"
       >
-        <Text className="text-text-inverse font-bold text-base">Rate a Place</Text>
+        <Text className="text-text-inverse font-bold text-base">{t('leaderboard.ratePlace')}</Text>
       </Pressable>
     </View>
   );
 }
 
+interface RestaurantListItemProps {
+  item: RestaurantWithId;
+  index: number;
+  onPress: (item: RestaurantWithId) => void;
+}
+
+const RestaurantListItem = React.memo(function RestaurantListItem({
+  item,
+  index,
+  onPress,
+}: RestaurantListItemProps) {
+  return (
+    <Pressable
+      className="px-5"
+      onPress={() => onPress(item)}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`View reviews for ${item.name}`}
+    >
+      <RestaurantCard
+        rank={index + 4}
+        name={item.name}
+        address={item.address}
+        averageScore={item.averageScore}
+        reviewCount={item.reviewCount}
+        variant="full"
+      />
+    </Pressable>
+  );
+});
+
 export default function HomeScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [restaurants, setRestaurants] = useState<RestaurantWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstEmit = useRef(true);
+  // Stable ref so subscription callbacks can read the latest t() without
+  // causing the effect to re-run (and the subscription to reconnect) on every
+  // language change.
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
 
   useEffect(() => {
     firstEmit.current = true;
@@ -135,7 +175,7 @@ export default function HomeScreen() {
           setRestaurants(data);
           setError(null);
         } catch {
-          setError('Failed to load rankings. Pull down to refresh.');
+          setError(tRef.current('leaderboard.failedLoad'));
         } finally {
           if (firstEmit.current) {
             firstEmit.current = false;
@@ -155,8 +195,8 @@ export default function HomeScreen() {
           clearTimeout(fallbackTimer);
         }
       },
-      (err) => {
-        setError('Failed to load rankings. Pull down to refresh.');
+      (_err) => {
+        setError(tRef.current('leaderboard.failedLoad'));
         if (firstEmit.current) {
           firstEmit.current = false;
           setLoading(false);
@@ -184,8 +224,45 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const topThree = restaurants.slice(0, 3);
-  const rest = restaurants.slice(3);
+  const topThree = useMemo(() => restaurants.slice(0, 3), [restaurants]);
+  const rest = useMemo(() => restaurants.slice(3), [restaurants]);
+
+  const handleRestaurantPress = useCallback((item: RestaurantWithId) => {
+    router.push({
+      pathname: '/restaurant/[restaurantId]' as any,
+      params: { restaurantId: item.id, name: item.name, address: item.address },
+    });
+  }, [router]);
+
+  const renderItem = useCallback(({ item, index }: { item: RestaurantWithId; index: number }) => (
+    <RestaurantListItem item={item} index={index} onPress={handleRestaurantPress} />
+  ), [handleRestaurantPress]);
+
+  const handleRatePress = useCallback(() => {
+    router.push('/(app)/search');
+  }, [router]);
+
+  const listHeader = useMemo(() => (
+    <View>
+      {topThree.length > 0 ? (
+        <>
+          <View className="px-5 pb-2">
+            <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              {t('leaderboard.top3')}
+            </Text>
+            {topThree.map((r, idx) => (
+              <TopThreeCard key={r.id} restaurant={r} rank={idx + 1} />
+            ))}
+          </View>
+          {rest.length > 0 ? <SectionDivider label={t('leaderboard.allRankings')} /> : null}
+        </>
+      ) : null}
+    </View>
+  ), [topThree, rest, t]);
+
+  const listEmpty = useMemo(() => (
+    restaurants.length === 0 ? <EmptyState onRatePress={handleRatePress} /> : null
+  ), [restaurants.length, handleRatePress]);
 
   if (loading) {
     return (
@@ -220,24 +297,6 @@ export default function HomeScreen() {
     );
   }
 
-  const listHeader = (
-    <View>
-      {topThree.length > 0 ? (
-        <>
-          <View className="px-5 pb-2">
-            <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-              TOP 3
-            </Text>
-            {topThree.map((r, idx) => (
-              <TopThreeCard key={r.id} restaurant={r} rank={idx + 1} />
-            ))}
-          </View>
-          {rest.length > 0 ? <SectionDivider label="ALL RANKINGS" /> : null}
-        </>
-      ) : null}
-    </View>
-  );
-
   return (
     <SafeAreaView className="flex-1 bg-bg-base">
       <HomeHeader />
@@ -245,34 +304,8 @@ export default function HomeScreen() {
         data={rest}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={
-          restaurants.length === 0 ? (
-            <EmptyState onRatePress={() => router.push('/(app)/search')} />
-          ) : null
-        }
-        renderItem={({ item, index }) => (
-          <Pressable
-            className="px-5"
-            onPress={() =>
-              router.push({
-                pathname: '/restaurant/[restaurantId]' as any,
-                params: { restaurantId: item.id, name: item.name, address: item.address },
-              })
-            }
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={`View reviews for ${item.name}`}
-          >
-            <RestaurantCard
-              rank={index + 4}
-              name={item.name}
-              address={item.address}
-              averageScore={item.averageScore}
-              reviewCount={item.reviewCount}
-              variant="full"
-            />
-          </Pressable>
-        )}
+        ListEmptyComponent={listEmpty}
+        renderItem={renderItem}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

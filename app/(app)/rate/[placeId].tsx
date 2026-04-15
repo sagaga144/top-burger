@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import PhotoUploader from '../../../components/PhotoUploader';
 import { RATING_QUESTIONS } from '../../../constants/ratingQuestions';
@@ -103,6 +104,7 @@ function SelectedChip({ displayName, onRemove }: SelectedChipProps) {
 
 export default function RateScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const params = useLocalSearchParams<{
     placeId: string;
@@ -125,8 +127,10 @@ export default function RateScreen() {
   const [selectedFriends, setSelectedFriends] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedFriendsRef = useRef(selectedFriends);
+  useEffect(() => { selectedFriendsRef.current = selectedFriends; }, [selectedFriends]);
 
-  // Debounced friend search
+  // Debounced friend search — selectedFriends filtered via ref to avoid re-triggering search on selection
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (!friendQuery.trim() || !user) {
@@ -137,11 +141,9 @@ export default function RateScreen() {
       setSearching(true);
       try {
         const results = await searchUsersByDisplayName(friendQuery.trim(), user.uid);
-        // Filter out already-selected friends
-        const selectedUids = new Set(selectedFriends.map((f) => f.uid));
+        const selectedUids = new Set(selectedFriendsRef.current.map((f) => f.uid));
         setSearchResults(results.filter((r) => !selectedUids.has(r.uid)));
       } catch {
-        // Silently fail search
         setSearchResults([]);
       } finally {
         setSearching(false);
@@ -150,7 +152,7 @@ export default function RateScreen() {
     return () => {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [friendQuery, user, selectedFriends]);
+  }, [friendQuery, user]);
 
   const handleSelectFriend = (friend: UserSearchResult) => {
     setSelectedFriends((prev) => [...prev, friend]);
@@ -169,7 +171,7 @@ export default function RateScreen() {
     if (!user) return;
 
     if (!allAnswered) {
-      setError('Please rate all 7 categories before submitting.');
+      setError(t('rate.rateAllCategories'));
       return;
     }
 
@@ -192,7 +194,7 @@ export default function RateScreen() {
       setError(
         err instanceof Error
           ? err.message
-          : 'Failed to save your review. Please try again.'
+          : t('rate.failedSave')
       );
     } finally {
       setSubmitting(false);
@@ -238,7 +240,7 @@ export default function RateScreen() {
             {RATING_QUESTIONS.map((q) => (
               <ScoreRow
                 key={q.key}
-                label={q.label}
+                label={t(q.labelKey)}
                 selectedScore={scores[q.key] ?? null}
                 onSelect={(score) =>
                   setScores((prev) => ({ ...prev, [q.key]: score }))
@@ -250,7 +252,7 @@ export default function RateScreen() {
           {/* Photo section */}
           <View className="mt-5">
             <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-              Photo
+              {t('rate.photo')}
             </Text>
             <PhotoUploader photoUri={photoUri} onPhotoSelected={setPhotoUri} />
           </View>
@@ -258,7 +260,7 @@ export default function RateScreen() {
           {/* I ate with section */}
           <View className="mt-5">
             <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-              I ate with
+              {t('rate.ateWith')}
             </Text>
           </View>
 
@@ -280,7 +282,7 @@ export default function RateScreen() {
             <TextInput
               value={friendQuery}
               onChangeText={setFriendQuery}
-              placeholder="Search by name…"
+              placeholder={t('rate.searchUsers')}
               placeholderTextColor="#8E8E93"
               accessible={true}
               accessibilityLabel="Search friends by name"
@@ -309,9 +311,6 @@ export default function RateScreen() {
                   className="bg-bg-card border border-border-subtle rounded-xl px-3 py-2 mb-1.5 self-start"
                 >
                   <Text className="text-sm font-semibold text-text-primary">{result.displayName}</Text>
-                  {result.email ? (
-                    <Text className="text-xs text-text-secondary">{result.email}</Text>
-                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -330,7 +329,7 @@ export default function RateScreen() {
             disabled={submitting}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Submit review"
+            accessibilityLabel={t('rate.submit')}
             testID="submit-review-button"
             className="h-13 bg-brand-red rounded-xl items-center justify-center mt-6"
             style={{ opacity: !allAnswered || submitting ? 0.5 : 1 }}
@@ -338,7 +337,7 @@ export default function RateScreen() {
             {submitting ? (
               <ActivityIndicator color="#F5F5F5" />
             ) : (
-              <Text className="text-text-inverse font-bold text-base">Submit</Text>
+              <Text className="text-text-inverse font-bold text-base">{t('rate.submit')}</Text>
             )}
           </Pressable>
         </ScrollView>

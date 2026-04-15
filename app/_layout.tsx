@@ -1,4 +1,5 @@
 import '../global.css';
+import '../lib/i18n';
 
 import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';

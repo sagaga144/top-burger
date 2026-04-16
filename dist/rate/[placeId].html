@@ -2,19 +2,21 @@
           html {
             background-color: #0F0F0F;
           }
-          /* iOS PWA fix: useSafeAreaInsets() returns 0 on installed iOS PWAs
-             (expo/expo#26011), so React Navigation's tab bar sits flush with
-             the home indicator. Apply safe-area padding at the BODY level so
-             the entire app (including the RN flex-laid-out tab bar) is pushed
-             above the home indicator. Also use 100dvh so iOS Safari's dynamic
-             viewport is respected. This is the same pattern used by gymion. */
+          /* Safe-area handling on web / iOS PWA.
+             Top / left / right: padded at body level for notch + rounded corners.
+             Bottom: padded ON THE TAB BAR ITSELF so its background extends down
+             to the edge of the screen (no visible gap under the home indicator).
+             useSafeAreaInsets() returns 0 on installed iOS PWAs (expo/expo#26011),
+             so we can't rely on React Navigation's JS-side paddingBottom — we
+             apply it via CSS env() which DOES work in iOS PWAs.
+             Target the outer tab bar container via :has(> [role="tablist"]),
+             since role="tablist" is on the INNER wrapper, not the outer View. */
           body {
             margin: 0;
             background-color: #0F0F0F;
             min-height: 100vh;
             min-height: 100dvh;
             padding-top: env(safe-area-inset-top, 0);
-            padding-bottom: env(safe-area-inset-bottom, 0);
             padding-left: env(safe-area-inset-left, 0);
             padding-right: env(safe-area-inset-right, 0);
             box-sizing: border-box;
@@ -27,6 +29,13 @@
             display: flex;
             flex-direction: column;
             min-height: 0;
+          }
+          /* Extend the tab bar background into the home-indicator safe area. */
+          div:has(> div[role="tablist"]) {
+            height: auto !important;
+            min-height: 56px !important;
+            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+            box-sizing: content-box !important;
           }
         </style><style id="react-native-stylesheet">[stylesheet-group="0"]{}
 body{margin:0;}
@@ -349,5 +358,5 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 @keyframes r-1pzkwqh{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
 @keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
 @keyframes r-q67da2{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
-@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-670b998166be94a9e87c28de5dfd7a9f.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-670b998166be94a9e87c28de5dfd7a9f.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"><!--$--><div class="css-g5y9jx" style="flex:1"><div class="css-g5y9jx r-13awgt0"><div class="css-g5y9jx flex-1 items-center justify-center bg-bg-base"><div role="progressbar" aria-valuemax="1" aria-valuemin="0" class="css-g5y9jx r-1awozwy r-1777fci"><div class="css-g5y9jx r-1r8g8re r-1acpoxo r-17bb2tj r-1muvv40 r-1yef0xd r-1ldzwu0"><svg height="100%" viewBox="0 0 32 32" width="100%"><circle cx="16" cy="16" fill="none" r="14" stroke-width="4" style="stroke:#E63946;opacity:0.2"></circle><circle cx="16" cy="16" fill="none" r="14" stroke-width="4" style="stroke:#E63946;stroke-dasharray:80;stroke-dashoffset:60"></circle></svg></div></div></div></div></div><!--/$--></div></div><script src="/_expo/static/js/web/entry-9f808d3296f27589f8f9e56365921d52.js" defer></script>
+@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-ee99f2b7f75fb8f7f986d8734113af69.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-ee99f2b7f75fb8f7f986d8734113af69.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"><!--$--><div class="css-g5y9jx" style="flex:1"><div class="css-g5y9jx r-13awgt0"><div class="css-g5y9jx flex-1 items-center justify-center bg-bg-base"><div role="progressbar" aria-valuemax="1" aria-valuemin="0" class="css-g5y9jx r-1awozwy r-1777fci"><div class="css-g5y9jx r-1r8g8re r-1acpoxo r-17bb2tj r-1muvv40 r-1yef0xd r-1ldzwu0"><svg height="100%" viewBox="0 0 32 32" width="100%"><circle cx="16" cy="16" fill="none" r="14" stroke-width="4" style="stroke:#E63946;opacity:0.2"></circle><circle cx="16" cy="16" fill="none" r="14" stroke-width="4" style="stroke:#E63946;stroke-dasharray:80;stroke-dashoffset:60"></circle></svg></div></div></div></div></div><!--/$--></div></div><script src="/_expo/static/js/web/entry-9f808d3296f27589f8f9e56365921d52.js" defer></script>
 </body></html>

@@ -154,7 +154,10 @@ export default function RateScreen() {
     };
   }, [friendQuery, user]);
 
+  const MAX_COMPANIONS = 5;
+
   const handleSelectFriend = (friend: UserSearchResult) => {
+    if (selectedFriends.length >= MAX_COMPANIONS) return;
     setSelectedFriends((prev) => [...prev, friend]);
     setFriendQuery('');
     setSearchResults([]);
@@ -277,25 +280,31 @@ export default function RateScreen() {
             </View>
           ) : null}
 
-          {/* Friend search input */}
-          <View className="relative">
-            <TextInput
-              value={friendQuery}
-              onChangeText={setFriendQuery}
-              placeholder={t('rate.searchUsers')}
-              placeholderTextColor="#8E8E93"
-              accessible={true}
-              accessibilityLabel="Search friends by name"
-              testID="friend-search-input"
-              className="bg-bg-card border border-border-subtle rounded-xl px-3 h-11 text-text-primary"
-              style={{ fontSize: 16 }}
-            />
-            {searching ? (
-              <View className="absolute right-3 top-3">
-                <ActivityIndicator size="small" />
-              </View>
-            ) : null}
-          </View>
+          {/* Friend search input — hidden when cap reached */}
+          {selectedFriends.length < MAX_COMPANIONS ? (
+            <View className="relative">
+              <TextInput
+                value={friendQuery}
+                onChangeText={setFriendQuery}
+                placeholder={t('rate.searchUsers')}
+                placeholderTextColor="#8E8E93"
+                accessible={true}
+                accessibilityLabel="Search friends by name"
+                testID="friend-search-input"
+                className="bg-bg-card border border-border-subtle rounded-xl px-3 h-11 text-text-primary"
+                style={{ fontSize: 16 }}
+              />
+              {searching ? (
+                <View className="absolute right-3 top-3">
+                  <ActivityIndicator size="small" />
+                </View>
+              ) : null}
+            </View>
+          ) : (
+            <Text className="text-sm text-text-secondary mt-1" testID="max-companions-hint">
+              {t('rate.maxCompanions')}
+            </Text>
+          )}
 
           {/* Search result chips */}
           {searchResults.length > 0 ? (

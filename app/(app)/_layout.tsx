@@ -16,8 +16,7 @@ function TabBarIcon({ name, focused }: { name: IoniconsName; focused: boolean })
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: '#E63946',
-            opacity: 0.1,
+            backgroundColor: 'rgba(230, 57, 70, 0.18)',
           }}
         />
       )}

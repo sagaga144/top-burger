@@ -66,7 +66,8 @@
     "submit": "Submit",
     "submitting": "Submitting...",
     "rateAllCategories": "Please rate all 7 categories before submitting.",
-    "failedSave": "Failed to save your review. Please try again."
+    "failedSave": "Failed to save your review. Please try again.",
+    "maxCompanions": "Max 5 companions"
   },
   "summary": {
     "yourReview": "Your Review",
@@ -95,7 +96,12 @@
     "startRating": "Start rating burger joints from the Rate tab!",
     "signOut": "Sign Out",
     "editName": "Edit Name",
-    "language": "LANGUAGE"
+    "language": "LANGUAGE",
+    "username": "Username",
+    "usernamePlaceholder": "Choose a username...",
+    "usernameInvalid": "3–20 chars, letters, numbers, _",
+    "usernameSaved": "Username saved",
+    "editUsername": "Edit username"
   },
   "language": {
     "restartRequired": "Direction change requires an app restart to take effect.",

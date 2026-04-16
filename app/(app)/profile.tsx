@@ -7,12 +7,14 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../store/authStore';
-import { subscribeToUserReviews, getUserProfile } from '../../lib/firestore';
+import { subscribeToUserReviews, getUserProfile, updateUsername } from '../../lib/firestore';
 import { ReviewWithId, AppUser } from '../../types';
 import RestaurantCard from '../../components/RestaurantCard';
 import LanguageToggle from '../../components/LanguageToggle';
@@ -43,15 +45,60 @@ function getScoreColorClass(score: number): string {
   return 'text-score-low';
 }
 
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
+
 interface UserCardProps {
+  uid: string;
   email: string;
+  displayName?: string;
+  onUsernameUpdate: (newName: string) => void;
 }
 
-function UserCard({ email }: UserCardProps) {
+function UserCard({ uid, email, displayName, onUsernameUpdate }: UserCardProps) {
   const { t } = useTranslation();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(false);
+
+  const displayLabel = displayName ?? email.split('@')[0];
+
+  const handleEditPress = () => {
+    setEditValue(displayName ?? '');
+    setEditError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditError(null);
+  };
+
+  const handleSave = async () => {
+    const trimmed = editValue.trim();
+    if (!USERNAME_REGEX.test(trimmed)) {
+      setEditError(t('profile.usernameInvalid'));
+      return;
+    }
+    setSaving(true);
+    setEditError(null);
+    try {
+      await updateUsername(uid, trimmed);
+      onUsernameUpdate(trimmed);
+      setIsEditing(false);
+      setSavedMessage(true);
+      setTimeout(() => setSavedMessage(false), 2000);
+    } catch {
+      setEditError(t('profile.usernameInvalid'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <View
-      className="bg-bg-card rounded-2xl px-5 py-5 mx-5 mt-4 mb-3 flex-row items-center"
+      className="bg-bg-card rounded-2xl px-5 py-5 mx-5 mt-4 mb-3"
       style={{
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -60,16 +107,99 @@ function UserCard({ email }: UserCardProps) {
         elevation: 6,
       }}
     >
-      <View className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mr-4">
-        <Text className="text-2xl font-black text-text-inverse">
-          {getInitial(email)}
-        </Text>
-      </View>
-      <View className="flex-1">
-        <Text className="text-base font-bold text-text-primary" numberOfLines={1}>
-          {email}
-        </Text>
-        <Text className="text-sm text-text-secondary mt-0.5">{t('profile.member')}</Text>
+      <View className="flex-row items-center">
+        <View className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mr-4">
+          <Text className="text-2xl font-black text-text-inverse">
+            {getInitial(email)}
+          </Text>
+        </View>
+        <View className="flex-1">
+          {isEditing ? (
+            <View>
+              <TextInput
+                value={editValue}
+                onChangeText={setEditValue}
+                placeholder={t('profile.usernamePlaceholder')}
+                placeholderTextColor="#8E8E93"
+                accessible={true}
+                accessibilityLabel={t('profile.username')}
+                testID="username-input"
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="bg-bg-base border border-border-subtle rounded-lg px-3 h-10 text-text-primary mb-2"
+                style={{ fontSize: 15 }}
+              />
+              {editError ? (
+                <Text className="text-xs text-error-text mb-2">{editError}</Text>
+              ) : null}
+              <View className="flex-row gap-2">
+                <Pressable
+                  onPress={handleSave}
+                  disabled={saving}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('profile.usernameSaved')}
+                  testID="username-save-button"
+                  className="flex-1 h-8 bg-brand-red rounded-lg items-center justify-center"
+                  style={{ opacity: saving ? 0.6 : 1 }}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#F5F5F5" />
+                  ) : (
+                    <Text className="text-text-inverse text-xs font-semibold">
+                      {t('profile.usernameSaved')}
+                    </Text>
+                  )}
+                </Pressable>
+                <Pressable
+                  onPress={handleCancel}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('summary.cancel')}
+                  testID="username-cancel-button"
+                  className="flex-1 h-8 bg-bg-base border border-border-subtle rounded-lg items-center justify-center"
+                >
+                  <Text className="text-text-secondary text-xs font-semibold">
+                    {t('summary.cancel')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View>
+              <View className="flex-row items-center">
+                <Text className="text-base font-bold text-text-primary mr-2" numberOfLines={1}>
+                  {displayLabel}
+                </Text>
+                <Pressable
+                  onPress={handleEditPress}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('profile.editUsername')}
+                  testID="username-edit-button"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="pencil-outline" size={16} color="#8E8E93" />
+                </Pressable>
+              </View>
+              {displayName ? (
+                <Text className="text-sm text-text-secondary mt-0.5" numberOfLines={1}>
+                  {email}
+                </Text>
+              ) : (
+                <Text className="text-sm text-text-secondary mt-0.5">
+                  {t('profile.member')}
+                </Text>
+              )}
+              {savedMessage ? (
+                <Text className="text-xs text-success-text mt-1">
+                  {t('profile.usernameSaved')}
+                </Text>
+              ) : null}
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -147,9 +277,6 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // suppress unused variable warning — profile fetched for future use
-  void profile;
-
   const firstEmit = useRef(true);
 
   useEffect(() => {
@@ -182,6 +309,10 @@ export default function ProfileScreen() {
     return () => unsubscribe();
   }, [user]);
 
+  const handleUsernameUpdate = useCallback((newName: string) => {
+    setProfile((prev) => prev ? { ...prev, displayName: newName } : prev);
+  }, []);
+
   const handleSignOut = useCallback(() => {
     if (Platform.OS === 'web') {
       if (window.confirm('Sign out of Top Burger?')) {
@@ -209,7 +340,12 @@ export default function ProfileScreen() {
 
   const listHeader = useMemo(() => (
     <View>
-      <UserCard email={user?.email ?? ''} />
+      <UserCard
+        uid={user?.uid ?? ''}
+        email={user?.email ?? ''}
+        displayName={profile?.displayName}
+        onUsernameUpdate={handleUsernameUpdate}
+      />
 
       {/* Stats row */}
       <View className="flex-row px-5 gap-3 mb-4">
@@ -241,7 +377,7 @@ export default function ProfileScreen() {
         </View>
       ) : null}
     </View>
-  ), [user, totalReviews, avgScore, reviews.length, t]);
+  ), [user, profile, totalReviews, avgScore, reviews.length, t, handleUsernameUpdate]);
 
   const listFooter = useMemo(() => (
     <View className="px-5 pt-4 pb-8">
@@ -271,7 +407,12 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-bg-base">
-        <UserCard email={user.email ?? ''} />
+        <UserCard
+          uid={user.uid}
+          email={user.email ?? ''}
+          displayName={profile?.displayName}
+          onUsernameUpdate={handleUsernameUpdate}
+        />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#E63946" />
         </View>

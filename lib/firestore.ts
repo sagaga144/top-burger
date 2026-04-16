@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
   query,
   orderBy,
   where,
@@ -261,6 +262,17 @@ export async function getUserProfile(userId: string): Promise<AppUser | null> {
   return snap.data() as AppUser;
 }
 
+export async function updateUsername(uid: string, username: string): Promise<void> {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+  if (currentUid !== uid) throw new Error('Not authorized');
+  const userRef = doc(db, 'users', uid);
+  await setDoc(userRef, {
+    displayName: username,
+    displayNameLower: username.toLowerCase(),
+  }, { merge: true });
+}
+
 export async function deleteReview(reviewId: string): Promise<void> {
   const currentUid = auth.currentUser?.uid;
   if (!currentUid) throw new Error('Not authenticated');
@@ -323,7 +335,6 @@ export async function deleteReview(reviewId: string): Promise<void> {
 export interface UserSearchResult {
   uid: string;
   displayName: string;
-  email: string;
 }
 
 export async function searchUsersByDisplayName(
@@ -334,32 +345,22 @@ export async function searchUsersByDisplayName(
   const lower = text.toLowerCase().trim();
   const end = lower + '\uf8ff';
 
-  // Parallel: search by displayNameLower AND email prefix
-  const [nameSnap, emailSnap] = await Promise.all([
-    getDocs(query(
-      collection(db, 'users'),
-      where('displayNameLower', '>=', lower),
-      where('displayNameLower', '<=', end),
-      limit(6)
-    )),
-    getDocs(query(
-      collection(db, 'users'),
-      where('email', '>=', lower),
-      where('email', '<=', end),
-      limit(6)
-    )),
-  ]);
+  const nameSnap = await getDocs(query(
+    collection(db, 'users'),
+    where('displayNameLower', '>=', lower),
+    where('displayNameLower', '<=', end),
+    limit(6)
+  ));
 
   const seen = new Set<string>();
   const results: UserSearchResult[] = [];
-  [...nameSnap.docs, ...emailSnap.docs].forEach(d => {
+  nameSnap.docs.forEach(d => {
     if (d.id === excludeUid || seen.has(d.id)) return;
     seen.add(d.id);
     const data = d.data();
     results.push({
       uid: d.id,
-      displayName: data.displayName || data.email?.split('@')[0] || 'User',
-      email: data.email ?? '',
+      displayName: data.displayName || 'User',
     });
   });
   return results.slice(0, 5);
@@ -385,6 +386,7 @@ export async function saveReviewForMultipleUsers(
   const currentUid = auth.currentUser?.uid;
   if (!currentUid) throw new Error('Not authenticated');
   if (currentUid !== params.authorUid) throw new Error('Not authorized');
+  if (params.taggedUids.length > 5) throw new Error('Too many tagged companions');
 
   const {
     authorUid,
@@ -422,7 +424,7 @@ export async function saveReviewForMultipleUsers(
       restaurantAddress: placeAddress,
       userId: participantUid,
       authorId: authorUid,
-      userEmail: participantUid === authorUid ? authorEmail : (taggedUserMap.get(participantUid)?.email ?? ''),
+      userEmail: participantUid === authorUid ? authorEmail : '',
       scores,
       averageScore,
       photoUrl,
@@ -479,22 +481,6 @@ export async function saveReviewForMultipleUsers(
     },
     { merge: true }
   );
-
-  // Upsert tagged participant user docs so they're discoverable by name search
-  for (const uid of taggedUids) {
-    const info = taggedUserMap.get(uid);
-    if (!info) continue;
-    const participantRef = doc(db, 'users', uid);
-    batch.set(
-      participantRef,
-      {
-        email: info.email,
-        displayName: info.displayName,
-        displayNameLower: info.displayName.toLowerCase(),
-      },
-      { merge: true }
-    );
-  }
 
   await batch.commit();
 }

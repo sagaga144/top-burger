@@ -28,19 +28,34 @@ export default function Root({ children }: PropsWithChildren) {
         <ScrollViewStyleReset />
 
         <style>{`
-          html, body, #root {
-            height: 100%;
+          html {
             background-color: #0F0F0F;
           }
           /* iOS PWA fix: useSafeAreaInsets() returns 0 on installed iOS PWAs
              (expo/expo#26011), so React Navigation's tab bar sits flush with
-             the home indicator. Target the tab bar via its ARIA role and add
-             bottom padding from CSS env() which DOES work in iOS PWAs.
-             !important is required to override React Native Web inline styles. */
-          div[role="tablist"] {
-            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
-            height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-            box-sizing: border-box !important;
+             the home indicator. Apply safe-area padding at the BODY level so
+             the entire app (including the RN flex-laid-out tab bar) is pushed
+             above the home indicator. Also use 100dvh so iOS Safari's dynamic
+             viewport is respected. This is the same pattern used by gymion. */
+          body {
+            margin: 0;
+            background-color: #0F0F0F;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding-top: env(safe-area-inset-top, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+            padding-left: env(safe-area-inset-left, 0);
+            padding-right: env(safe-area-inset-right, 0);
+            box-sizing: border-box;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+          }
+          #root {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
           }
         `}</style>
       </head>

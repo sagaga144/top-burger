@@ -3,9 +3,15 @@
             height: 100%;
             background-color: #0F0F0F;
           }
-          /* Push tab bar above home indicator / browser chrome on all mobile browsers */
-          #root > div > div > div:last-child {
-            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+          /* iOS PWA fix: useSafeAreaInsets() returns 0 on installed iOS PWAs
+             (expo/expo#26011), so React Navigation's tab bar sits flush with
+             the home indicator. Target the tab bar via its ARIA role and add
+             bottom padding from CSS env() which DOES work in iOS PWAs.
+             !important is required to override React Native Web inline styles. */
+          div[role="tablist"] {
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+            height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+            box-sizing: border-box !important;
           }
         </style><style id="react-native-stylesheet">[stylesheet-group="0"]{}
 body{margin:0;}
@@ -328,5 +334,5 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 @keyframes r-1pzkwqh{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
 @keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
 @keyframes r-q67da2{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
-@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-670b998166be94a9e87c28de5dfd7a9f.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-670b998166be94a9e87c28de5dfd7a9f.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-e067f23f59a7323137a8408af0d8888a.js" defer></script>
+@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-813f211c8b8ae990f21d47138d6f96f0.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-813f211c8b8ae990f21d47138d6f96f0.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-e067f23f59a7323137a8408af0d8888a.js" defer></script>
 </body></html>

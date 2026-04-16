@@ -32,9 +32,15 @@ export default function Root({ children }: PropsWithChildren) {
             height: 100%;
             background-color: #0F0F0F;
           }
-          /* Push tab bar above home indicator / browser chrome on all mobile browsers */
-          #root > div > div > div:last-child {
-            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+          /* iOS PWA fix: useSafeAreaInsets() returns 0 on installed iOS PWAs
+             (expo/expo#26011), so React Navigation's tab bar sits flush with
+             the home indicator. Target the tab bar via its ARIA role and add
+             bottom padding from CSS env() which DOES work in iOS PWAs.
+             !important is required to override React Native Web inline styles. */
+          div[role="tablist"] {
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+            height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+            box-sizing: border-box !important;
           }
         `}</style>
       </head>

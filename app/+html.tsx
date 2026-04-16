@@ -64,7 +64,9 @@ export default function Root({ children }: PropsWithChildren) {
             min-height: 0;
           }
           /* Visually fill the home-indicator safe area with the tab-bar color,
-             so the tab bar appears to extend edge-to-edge on iOS PWA. */
+             so the tab bar appears to extend edge-to-edge on iOS PWA / Safari.
+             On touch devices we enforce a minimum height so the strip always
+             covers the home-indicator area even if env() underreports. */
           body::after {
             content: '';
             position: fixed;
@@ -75,6 +77,11 @@ export default function Root({ children }: PropsWithChildren) {
             background-color: #1C1C1E;
             pointer-events: none;
             z-index: 1;
+          }
+          @media (hover: none) and (pointer: coarse) {
+            body::after {
+              height: max(env(safe-area-inset-bottom, 0px), 34px);
+            }
           }
         `}</style>
       </head>

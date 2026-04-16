@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -29,8 +29,12 @@ function TabBarIcon({ name, focused }: { name: IoniconsName; focused: boolean })
 export default function AppLayout() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const isWeb = Platform.OS === 'web';
   // Reserve space for icons (24) + label (14) + paddingTop (8) + gap + bottom inset
-  const TAB_BAR_HEIGHT = 56 + insets.bottom;
+  // Web: use generous padding and no explicit height so labels never clip; the
+  // home-indicator safe area is covered visually by body::after in +html.tsx.
+  // Native: use measured insets so the tab bar lifts above iOS/Android nav bars.
+  const TAB_BAR_HEIGHT = 68 + insets.bottom;
 
   const renderHomeIcon = useCallback(({ focused }: { focused: boolean }) => (
     <TabBarIcon name={focused ? 'home' : 'home-outline'} focused={focused} />
@@ -50,14 +54,23 @@ export default function AppLayout() {
         headerShown: false,
         tabBarActiveTintColor: '#E63946',
         tabBarInactiveTintColor: '#8E8E93',
-        tabBarStyle: {
-          backgroundColor: '#1C1C1E',
-          borderTopColor: '#2C2C2E',
-          borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: insets.bottom,
-          height: TAB_BAR_HEIGHT,
-        },
+        tabBarStyle: isWeb
+          ? {
+              backgroundColor: '#1C1C1E',
+              borderTopColor: '#2C2C2E',
+              borderTopWidth: 1,
+              paddingTop: 8,
+              paddingBottom: 12,
+              height: 68,
+            }
+          : {
+              backgroundColor: '#1C1C1E',
+              borderTopColor: '#2C2C2E',
+              borderTopWidth: 1,
+              paddingTop: 8,
+              paddingBottom: insets.bottom,
+              height: TAB_BAR_HEIGHT,
+            },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',

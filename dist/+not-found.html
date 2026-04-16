@@ -35,7 +35,9 @@
             min-height: 0;
           }
           /* Visually fill the home-indicator safe area with the tab-bar color,
-             so the tab bar appears to extend edge-to-edge on iOS PWA. */
+             so the tab bar appears to extend edge-to-edge on iOS PWA / Safari.
+             On touch devices we enforce a minimum height so the strip always
+             covers the home-indicator area even if env() underreports. */
           body::after {
             content: '';
             position: fixed;
@@ -46,6 +48,11 @@
             background-color: #1C1C1E;
             pointer-events: none;
             z-index: 1;
+          }
+          @media (hover: none) and (pointer: coarse) {
+            body::after {
+              height: max(env(safe-area-inset-bottom, 0px), 34px);
+            }
           }
         </style><style id="react-native-stylesheet">[stylesheet-group="0"]{}
 body{margin:0;}
@@ -368,5 +375,5 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 @keyframes r-1pzkwqh{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
 @keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
 @keyframes r-q67da2{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
-@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-938ac5e2b6e187966041fbd370953366.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-938ac5e2b6e187966041fbd370953366.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-9f808d3296f27589f8f9e56365921d52.js" defer></script>
+@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-938ac5e2b6e187966041fbd370953366.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-938ac5e2b6e187966041fbd370953366.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-ac22ab8abcefb43eeb9c8977e27385ca.js" defer></script>
 </body></html>

@@ -167,37 +167,37 @@ function UserCard({ uid, email, displayName, onUsernameUpdate }: UserCardProps) 
               </View>
             </View>
           ) : (
-            <View>
+            <Pressable
+              onPress={handleEditPress}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.editUsername')}
+              testID="username-edit-button"
+            >
               <View className="flex-row items-center">
                 <Text className="text-base font-bold text-text-primary mr-2" numberOfLines={1}>
                   {displayLabel}
                 </Text>
-                <Pressable
-                  onPress={handleEditPress}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('profile.editUsername')}
-                  testID="username-edit-button"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="pencil-outline" size={16} color="#8E8E93" />
-                </Pressable>
+                <Ionicons name="pencil-outline" size={16} color="#E63946" />
               </View>
               {displayName ? (
                 <Text className="text-sm text-text-secondary mt-0.5" numberOfLines={1}>
                   {email}
                 </Text>
               ) : (
-                <Text className="text-sm text-text-secondary mt-0.5">
-                  {t('profile.member')}
-                </Text>
+                <View className="flex-row items-center mt-1 gap-1">
+                  <Ionicons name="person-add-outline" size={12} color="#E63946" />
+                  <Text className="text-xs font-semibold text-brand-red">
+                    {t('profile.setUsername')}
+                  </Text>
+                </View>
               )}
               {savedMessage ? (
                 <Text className="text-xs text-success-text mt-1">
                   {t('profile.usernameSaved')}
                 </Text>
               ) : null}
-            </View>
+            </Pressable>
           )}
         </View>
       </View>

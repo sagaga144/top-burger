@@ -101,7 +101,8 @@
     "usernamePlaceholder": "Choose a username...",
     "usernameInvalid": "3–20 chars, letters, numbers, _",
     "usernameSaved": "Username saved",
-    "editUsername": "Edit username"
+    "editUsername": "Edit username",
+    "setUsername": "Set your username"
   },
   "language": {
     "restartRequired": "Direction change requires an app restart to take effect.",

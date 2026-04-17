@@ -43,7 +43,7 @@
   },
   "search": {
     "title": "Rate a Restaurant",
-    "subtitle": "Search for a burger place in Israel",
+    "subtitle": "Search for a burger place",
     "placeholder": "Search restaurants...",
     "manualEntry": "Enter manually",
     "cantFindIt": "Can't find it?",

@@ -25,7 +25,7 @@ interface NominatimResult {
   };
 }
 
-export async function searchRestaurantsInIsrael(
+export async function searchRestaurants(
   textQuery: string
 ): Promise<PlaceResult[]> {
   if (!textQuery.trim()) return [];
@@ -33,7 +33,6 @@ export async function searchRestaurantsInIsrael(
   const params = new URLSearchParams({
     q: textQuery,
     format: 'json',
-    countrycodes: 'il',
     limit: '20',
     addressdetails: '1',
     'accept-language': 'en',
@@ -68,7 +67,7 @@ export async function searchRestaurantsInIsrael(
     if (city) parts.push(city);
 
     const displayName = item.name || item.display_name.split(',')[0].trim();
-    const formattedAddress = parts.length > 0 ? parts.join(', ') : 'Israel';
+    const formattedAddress = parts.length > 0 ? parts.join(', ') : item.display_name;
 
     return {
       id: `osm-${item.osm_type}-${item.osm_id}`,

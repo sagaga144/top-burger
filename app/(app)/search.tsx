@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { searchRestaurantsInIsrael } from '../../lib/places';
+import { searchRestaurants } from '../../lib/places';
 import { PlaceResult } from '../../types';
 
 type SearchState = 'idle' | 'loading' | 'results' | 'selected' | 'manual';
@@ -276,7 +276,7 @@ export default function SearchScreen() {
 
     searchTimeout.current = setTimeout(async () => {
       try {
-        const places = await searchRestaurantsInIsrael(text.trim());
+        const places = await searchRestaurants(text.trim());
         setResults(places);
         setSearchState('results');
       } catch (err) {

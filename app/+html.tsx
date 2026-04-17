@@ -32,30 +32,31 @@ export default function Root({ children }: PropsWithChildren) {
             background-color: #0F0F0F;
           }
           /* Safe-area handling on web / iOS PWA:
-             1. Body gets padding on all 4 sides from env(safe-area-inset-*).
-                This pushes the RN flex tree (including the tab bar at the bottom)
-                into the safe viewport, so the tab bar is never cropped by the
-                iOS home indicator and its content (icons + labels) is not clipped.
-             2. A fixed pseudo-element paints a #1C1C1E rectangle over the bottom
-                safe-area strip, so the gap between the tab bar's actual bottom
-                edge and the screen edge LOOKS like part of the tab bar (matching
-                background color) instead of a dark cut-off strip.
-             useSafeAreaInsets() returns 0 on installed iOS PWAs (expo/expo#26011),
-             so we must rely on CSS env() — which DOES work in iOS PWAs. */
+             Body padding pushes the RN flex tree into the safe viewport.
+             A background gradient paints the bottom safe-area strip in
+             the tab-bar color (#1C1C1E) so no z-index overlay is needed.
+             useSafeAreaInsets() returns 0 on installed iOS PWAs
+             (expo/expo#26011), so we rely on CSS env(). */
           body {
             margin: 0;
             background-color: #0F0F0F;
-            min-height: 100vh;
-            min-height: 100dvh;
+            background: linear-gradient(
+              to bottom,
+              #0F0F0F 0%,
+              #0F0F0F calc(100% - env(safe-area-inset-bottom, 0px)),
+              #1C1C1E calc(100% - env(safe-area-inset-bottom, 0px)),
+              #1C1C1E 100%
+            );
+            height: 100vh;
+            height: 100dvh;
             padding-top: env(safe-area-inset-top, 0);
             padding-bottom: env(safe-area-inset-bottom, 0);
             padding-left: env(safe-area-inset-left, 0);
             padding-right: env(safe-area-inset-right, 0);
             box-sizing: border-box;
-            overflow-x: hidden;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            position: relative;
           }
           #root {
             flex: 1 1 auto;
@@ -63,24 +64,18 @@ export default function Root({ children }: PropsWithChildren) {
             flex-direction: column;
             min-height: 0;
           }
-          /* Visually fill the home-indicator safe area with the tab-bar color,
-             so the tab bar appears to extend edge-to-edge on iOS PWA / Safari.
-             On touch devices we enforce a minimum height so the strip always
-             covers the home-indicator area even if env() underreports. */
-          body::after {
-            content: '';
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: env(safe-area-inset-bottom, 0);
-            background-color: #1C1C1E;
-            pointer-events: none;
-            z-index: 1;
-          }
-          @media (hover: none) and (pointer: coarse) {
-            body::after {
-              height: max(env(safe-area-inset-bottom, 0px), 34px);
+          /* In standalone PWA mode, force a minimum bottom padding
+             in case env() underreports the home indicator area. */
+          @media (display-mode: standalone) {
+            body {
+              padding-bottom: max(env(safe-area-inset-bottom, 0px), 34px);
+              background: linear-gradient(
+                to bottom,
+                #0F0F0F 0%,
+                #0F0F0F calc(100% - max(env(safe-area-inset-bottom, 0px), 34px)),
+                #1C1C1E calc(100% - max(env(safe-area-inset-bottom, 0px), 34px)),
+                #1C1C1E 100%
+              );
             }
           }
         `}</style>

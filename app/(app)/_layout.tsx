@@ -9,14 +9,14 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 function TabBarIcon({ name, focused }: { name: IoniconsName; focused: boolean }) {
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', width: 40, height: 40 }}>
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       {focused && (
         <View
           style={{
             position: 'absolute',
-            width: 40,
-            height: 40,
-            borderRadius: 20,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
             backgroundColor: 'rgba(230, 57, 70, 0.18)',
           }}
         />
@@ -59,9 +59,9 @@ export default function AppLayout() {
               backgroundColor: '#1C1C1E',
               borderTopColor: '#2C2C2E',
               borderTopWidth: 1,
-              paddingTop: 8,
-              paddingBottom: 12,
-              height: 68,
+              paddingTop: 10,
+              paddingBottom: 20,
+              height: 80,
             }
           : {
               backgroundColor: '#1C1C1E',

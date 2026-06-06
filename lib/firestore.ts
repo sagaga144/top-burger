@@ -13,13 +13,8 @@ import {
   serverTimestamp,
   onSnapshot,
 } from 'firebase/firestore';
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-} from 'firebase/storage';
 import { Platform } from 'react-native';
-import { db, storage, auth } from './firebase';
+import { db, auth } from './firebase';
 import {
   Review,
   ReviewScores,
@@ -45,6 +40,52 @@ async function uriToBlob(uri: string): Promise<Blob> {
     xhr.open('GET', uri, true);
     xhr.send(null);
   });
+}
+
+// Uploads a review photo to Cloudinary via an unsigned upload preset and returns
+// the hosted CDN URL. Used instead of Firebase Storage (which requires a paid
+// Blaze plan). The cloud name and unsigned preset are public by design, so they
+// are safe to ship in the client bundle via EXPO_PUBLIC_* env vars.
+async function uploadReviewPhoto(uri: string): Promise<string> {
+  const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Image upload is not configured.');
+  }
+
+  const formData = new FormData();
+  if (Platform.OS === 'web') {
+    // On web, send the image as a Blob with an explicit filename.
+    const blob = await uriToBlob(uri);
+    formData.append('file', blob, `review-${Date.now()}.jpg`);
+  } else {
+    // On native, React Native's FormData accepts a { uri, name, type } file
+    // descriptor directly — no need to read the whole file into memory.
+    formData.append('file', {
+      uri,
+      name: `review-${Date.now()}.jpg`,
+      type: 'image/jpeg',
+    } as unknown as Blob);
+  }
+  formData.append('upload_preset', uploadPreset);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    { method: 'POST', body: formData }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new Error(
+      `Photo upload failed (${response.status}). ${detail}`.trim()
+    );
+  }
+
+  const data = (await response.json()) as { secure_url?: string };
+  if (!data.secure_url) {
+    throw new Error('Photo upload failed: no URL returned.');
+  }
+  return data.secure_url;
 }
 
 function computeAverage(scores: ReviewScores): number {
@@ -146,6 +187,7 @@ export interface SaveReviewParams {
   userEmail: string;
   scores: ReviewScores;
   photoUri: string | null;
+  photoAspectRatio?: number;
 }
 
 export async function saveReview(params: SaveReviewParams): Promise<string> {
@@ -161,20 +203,15 @@ export async function saveReview(params: SaveReviewParams): Promise<string> {
     userEmail,
     scores,
     photoUri,
+    photoAspectRatio,
   } = params;
 
   const averageScore = computeAverage(scores);
 
-  // Upload photo first (outside transaction — Storage is not transactional)
+  // Upload photo first (outside transaction — the upload is not transactional)
   let photoUrl: string | null = null;
   if (photoUri) {
-    const blob = await uriToBlob(photoUri);
-    const photoRef = ref(
-      storage,
-      `reviews/${userId}/${Date.now()}.jpg`
-    );
-    await uploadBytes(photoRef, blob);
-    photoUrl = await getDownloadURL(photoRef);
+    photoUrl = await uploadReviewPhoto(photoUri);
   }
 
   const restaurantRef = doc(db, 'restaurants', placeId);
@@ -234,6 +271,7 @@ export async function saveReview(params: SaveReviewParams): Promise<string> {
       scores,
       averageScore,
       photoUrl,
+      ...(photoUrl && photoAspectRatio != null ? { photoAspectRatio } : {}),
       createdAt: serverTimestamp(),
     });
 
@@ -378,6 +416,7 @@ export interface SaveReviewForMultipleUsersParams {
   placeAddress: string;
   scores: ReviewScores;
   photoUri: string | null;
+  photoAspectRatio?: number;
 }
 
 export async function saveReviewForMultipleUsers(
@@ -398,18 +437,16 @@ export async function saveReviewForMultipleUsers(
     placeAddress,
     scores,
     photoUri,
+    photoAspectRatio,
   } = params;
 
   const averageScore = computeAverage(scores);
   const allParticipantUids = [authorUid, ...taggedUids];
 
-  // Upload photo once outside of the batch (Storage is not transactional)
+  // Upload photo once outside of the batch (the upload is not transactional)
   let photoUrl: string | null = null;
   if (photoUri) {
-    const blob = await uriToBlob(photoUri);
-    const photoRef = ref(storage, `reviews/${authorUid}/${Date.now()}.jpg`);
-    await uploadBytes(photoRef, blob);
-    photoUrl = await getDownloadURL(photoRef);
+    photoUrl = await uploadReviewPhoto(photoUri);
   }
 
   const taggedUserMap = new Map(taggedUsers.map((u) => [u.uid, u]));
@@ -428,6 +465,7 @@ export async function saveReviewForMultipleUsers(
       scores,
       averageScore,
       photoUrl,
+      ...(photoUrl && photoAspectRatio != null ? { photoAspectRatio } : {}),
       eatenWith: allParticipantUids,
       createdAt: serverTimestamp(),
     });

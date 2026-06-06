@@ -205,11 +205,7 @@ export default function SummaryScreen() {
         <View
           className="bg-bg-card rounded-2xl p-6 items-center mb-4"
           style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.06,
-            shadowRadius: 4,
-            elevation: 2,
+            boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
           }}
         >
           <Text className="text-xs font-bold text-text-secondary tracking-widest mb-3">
@@ -227,23 +223,28 @@ export default function SummaryScreen() {
 
         {/* Photo (if exists) */}
         {review.photoUrl ? (
-          <Image
-            source={{ uri: review.photoUrl }}
-            className="w-full rounded-2xl mb-4"
-            style={{ height: 200 }}
-            resizeMode="cover"
-          />
+          <View
+            className="w-full rounded-2xl overflow-hidden bg-bg-card mb-4"
+            style={{
+              aspectRatio: review.photoAspectRatio ?? 4 / 3,
+              maxHeight: 320,
+            }}
+          >
+            <Image
+              source={{ uri: review.photoUrl }}
+              className="w-full h-full"
+              resizeMode="contain"
+              accessible
+              accessibilityLabel={t('summary.photoAlt')}
+            />
+          </View>
         ) : null}
 
         {/* Dimension scores breakdown */}
         <View
           className="bg-bg-card rounded-2xl p-4 mb-6"
           style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.06,
-            shadowRadius: 4,
-            elevation: 2,
+            boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
           }}
         >
           <Text className="text-xs font-bold text-text-secondary tracking-widest mb-4">

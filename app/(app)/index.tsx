@@ -75,11 +75,7 @@ function TopThreeCard({ restaurant, rank }: TopThreeCardProps) {
       accessibilityLabel={`View reviews for ${restaurant.name}`}
       className="rounded-2xl mx-5 mb-2 pl-1 overflow-hidden"
       style={{
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.18,
-        shadowRadius: 12,
-        elevation: 6,
+        boxShadow: '0px 4px 12px rgba(0,0,0,0.18)',
       }}
     >
       <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 }} className={getRankStripClass(rank)} />

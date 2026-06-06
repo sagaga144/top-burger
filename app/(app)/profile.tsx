@@ -100,11 +100,7 @@ function UserCard({ uid, email, displayName, onUsernameUpdate }: UserCardProps) 
     <View
       className="bg-bg-card rounded-2xl px-5 py-5 mx-5 mt-4 mb-3"
       style={{
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.18,
-        shadowRadius: 12,
-        elevation: 6,
+        boxShadow: '0px 4px 12px rgba(0,0,0,0.18)',
       }}
     >
       <View className="flex-row items-center">
@@ -216,11 +212,7 @@ function StatCard({ label, value, highlight }: StatCardProps) {
     <View
       className="flex-1 bg-bg-card rounded-2xl px-4 py-4 items-center"
       style={{
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
       }}
     >
       <Text className={`text-2xl font-black ${highlight ? 'text-brand-red' : 'text-text-primary'}`}>{value}</Text>

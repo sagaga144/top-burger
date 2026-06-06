@@ -54,11 +54,23 @@
     "searchByName": "\u05d7\u05e4\u05e9 \u05dc\u05e4\u05d9 \u05e9\u05dd \u05d0\u05d5 \u05de\u05d9\u05e7\u05d5\u05dd \u05db\u05d3\u05d9 \u05dc\u05d4\u05ea\u05d7\u05d9\u05dc \u05d3\u05d9\u05e8\u05d5\u05d2",
     "startRating": "\u05d4\u05ea\u05d7\u05dc \u05d3\u05d9\u05e8\u05d5\u05d2",
     "restaurantNameRequired": "\u05e9\u05dd \u05d4\u05de\u05e1\u05e2\u05d3\u05d4 (\u05d7\u05d5\u05d1\u05d4)",
-    "addressOptional": "\u05db\u05ea\u05d5\u05d1\u05ea (\u05e8\u05e9\u05d5\u05ea)"
+    "addressOptional": "\u05db\u05ea\u05d5\u05d1\u05ea (\u05e8\u05e9\u05d5\u05ea)",
+    "country": {
+      "title": "בחר מדינה",
+      "allCountries": "כל המדינות",
+      "searchPlaceholder": "חיפוש מדינות…",
+      "clearSearch": "נקה חיפוש מדינות",
+      "close": "סגור בורר מדינות",
+      "chipLabel": "מסנן מדינה: {{name}}",
+      "placeholderScoped": "חיפוש ב{{country}}…",
+      "noResults": "אין תוצאות ב{{country}}",
+      "tryGlobal": "נסה להסיר את מסנן המדינה או להזין ידנית",
+      "noMatch": "אין מדינות התואמות את החיפוש"
+    }
   },
   "rate": {
     "title": "\u05d3\u05e8\u05d2",
-    "photo": "\u05ea\u05de\u05d5\u05e0\u05d4",
+    "photoSection": "\u05ea\u05de\u05d5\u05e0\u05d4",
     "addPhoto": "\u05d4\u05d5\u05e1\u05e3 \u05ea\u05de\u05d5\u05e0\u05d4",
     "ateWith": "\u05d0\u05db\u05dc\u05ea\u05d9 \u05e2\u05dd",
     "searchUsers": "\u05d7\u05e4\u05e9 \u05dc\u05e4\u05d9 \u05e9\u05dd...",
@@ -67,7 +79,11 @@
     "submitting": "\u05e9\u05d5\u05dc\u05d7...",
     "rateAllCategories": "\u05d0\u05e0\u05d0 \u05d3\u05e8\u05d2 \u05d0\u05ea \u05db\u05dc 7 \u05d4\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d5\u05ea \u05dc\u05e4\u05e0\u05d9 \u05d4\u05e9\u05dc\u05d9\u05d7\u05d4.",
     "failedSave": "\u05e9\u05de\u05d9\u05e8\u05ea \u05d4\u05d1\u05d9\u05e7\u05d5\u05e8\u05ea \u05e0\u05db\u05e9\u05dc\u05d4. \u05e0\u05e1\u05d4 \u05e9\u05d5\u05d1.",
-    "maxCompanions": "\u05e2\u05d3 5 \u05de\u05dc\u05d5\u05d5\u05d9\u05dd"
+    "maxCompanions": "\u05e2\u05d3 5 \u05de\u05dc\u05d5\u05d5\u05d9\u05dd",
+    "photo": {
+      "tapToUpload": "הקש להוספת תמונה",
+      "remove": "הסר תמונה"
+    }
   },
   "summary": {
     "yourReview": "\u05d4\u05d1\u05d9\u05e7\u05d5\u05e8\u05ea \u05e9\u05dc\u05da",
@@ -84,7 +100,8 @@
     "confirmDelete": "\u05d4\u05d0\u05dd \u05d0\u05ea\u05d4 \u05d1\u05d8\u05d5\u05d7 \u05e9\u05d1\u05e8\u05e6\u05d5\u05e0\u05da \u05dc\u05de\u05d7\u05d5\u05e7 \u05d0\u05ea \u05d4\u05d1\u05d9\u05e7\u05d5\u05e8\u05ea?",
     "reviewedBy": "\u05e0\u05d9\u05e8\u05e9\u05dd \u05e2\u05dc \u05d9\u05d3\u05d9",
     "reviewNotFound": "\u05d1\u05d9\u05e7\u05d5\u05e8\u05ea \u05dc\u05d0 \u05e0\u05de\u05e6\u05d0\u05d4.",
-    "failedLoad": "\u05d8\u05e2\u05d9\u05e0\u05ea \u05d4\u05d1\u05d9\u05e7\u05d5\u05e8\u05ea \u05e0\u05db\u05e9\u05dc\u05d4."
+    "failedLoad": "\u05d8\u05e2\u05d9\u05e0\u05ea \u05d4\u05d1\u05d9\u05e7\u05d5\u05e8\u05ea \u05e0\u05db\u05e9\u05dc\u05d4.",
+    "photoAlt": "תמונת ביקורת"
   },
   "profile": {
     "title": "\u05e4\u05e8\u05d5\u05e4\u05d9\u05dc",

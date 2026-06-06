@@ -46,11 +46,7 @@ function ReviewRow({ review, onPress }: ReviewRowProps) {
       accessibilityLabel={`Review by ${label}`}
       className="bg-bg-card rounded-2xl px-4 py-3.5 mb-2 flex-row items-center"
       style={{
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
       }}
     >
       <View className="w-9 h-9 rounded-full bg-brand-red items-center justify-center mr-3">

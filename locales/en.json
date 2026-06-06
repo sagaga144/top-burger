@@ -54,11 +54,23 @@
     "searchByName": "Search by name or location to start rating",
     "startRating": "Start Rating",
     "restaurantNameRequired": "Restaurant name (required)",
-    "addressOptional": "Address (optional)"
+    "addressOptional": "Address (optional)",
+    "country": {
+      "title": "Choose Country",
+      "allCountries": "All countries",
+      "searchPlaceholder": "Search countries…",
+      "clearSearch": "Clear country search",
+      "close": "Close country picker",
+      "chipLabel": "Country filter: {{name}}",
+      "placeholderScoped": "Search in {{country}}…",
+      "noResults": "No results in {{country}}",
+      "tryGlobal": "Try removing the country filter or use manual entry",
+      "noMatch": "No countries match your search"
+    }
   },
   "rate": {
     "title": "Rate",
-    "photo": "Photo",
+    "photoSection": "Photo",
     "addPhoto": "Add Photo",
     "ateWith": "I ate with",
     "searchUsers": "Search by name\u2026",
@@ -67,7 +79,11 @@
     "submitting": "Submitting...",
     "rateAllCategories": "Please rate all 7 categories before submitting.",
     "failedSave": "Failed to save your review. Please try again.",
-    "maxCompanions": "Max 5 companions"
+    "maxCompanions": "Max 5 companions",
+    "photo": {
+      "tapToUpload": "Tap to add a photo",
+      "remove": "Remove photo"
+    }
   },
   "summary": {
     "yourReview": "Your Review",
@@ -76,6 +92,7 @@
     "breakdown": "BREAKDOWN",
     "scores": "SCORES",
     "photo": "Photo",
+    "photoAlt": "Review photo",
     "ateWith": "Eaten with",
     "deleteReview": "Delete review",
     "cancel": "Cancel",

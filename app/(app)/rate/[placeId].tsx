@@ -118,6 +118,8 @@ export default function RateScreen() {
 
   const [scores, setScores] = useState<PartialScores>({});
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoWidth, setPhotoWidth] = useState<number | undefined>(undefined);
+  const [photoHeight, setPhotoHeight] = useState<number | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,6 +183,11 @@ export default function RateScreen() {
     setError(null);
     setSubmitting(true);
     try {
+      const aspectRatio =
+        photoUri && photoWidth && photoHeight
+          ? photoWidth / photoHeight
+          : undefined;
+
       await saveReviewForMultipleUsers({
         authorUid: user.uid,
         authorEmail: user.email ?? '',
@@ -191,6 +198,7 @@ export default function RateScreen() {
         placeAddress: restaurantAddress,
         scores: scores as ReviewScores,
         photoUri,
+        photoAspectRatio: aspectRatio,
       });
       router.replace('/(app)');
     } catch (err) {
@@ -255,9 +263,18 @@ export default function RateScreen() {
           {/* Photo section */}
           <View className="mt-5">
             <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-              {t('rate.photo')}
+              {t('rate.photoSection')}
             </Text>
-            <PhotoUploader photoUri={photoUri} onPhotoSelected={setPhotoUri} />
+            <PhotoUploader
+              photoUri={photoUri}
+              onPhotoSelected={(uri, w, h) => {
+                setPhotoUri(uri);
+                setPhotoWidth(w);
+                setPhotoHeight(h);
+              }}
+              assetWidth={photoWidth}
+              assetHeight={photoHeight}
+            />
           </View>
 
           {/* I ate with section */}

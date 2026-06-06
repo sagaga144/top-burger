@@ -1,16 +1,25 @@
 import React from 'react';
-import { View, Text, Pressable, Image, Alert, Platform } from 'react-native';
+import { View, Pressable, Image, Alert, Platform } from 'react-native';
+import { Text } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 interface PhotoUploaderProps {
   photoUri: string | null;
-  onPhotoSelected: (uri: string | null) => void;
+  onPhotoSelected: (uri: string | null, width?: number, height?: number) => void;
+  assetWidth?: number;
+  assetHeight?: number;
 }
 
 export default function PhotoUploader({
   photoUri,
   onPhotoSelected,
+  assetWidth,
+  assetHeight,
 }: PhotoUploaderProps) {
+  const { t } = useTranslation();
+
   const handlePickPhoto = async () => {
     // On web the browser handles file access natively — no permission API available.
     if (Platform.OS !== 'web') {
@@ -25,14 +34,13 @@ export default function PhotoUploader({
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      mediaTypes: ['images'],
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      onPhotoSelected(result.assets[0].uri);
+      const asset = result.assets[0];
+      onPhotoSelected(asset.uri, asset.width, asset.height);
     }
   };
 
@@ -40,23 +48,30 @@ export default function PhotoUploader({
     onPhotoSelected(null);
   };
 
+  const aspectRatio =
+    assetWidth && assetHeight ? assetWidth / assetHeight : 4 / 3;
+
   if (photoUri) {
     return (
       <View className="mt-4">
-        <View className="relative">
+        <View
+          className="rounded-2xl overflow-hidden bg-bg-card"
+          style={{ aspectRatio, maxHeight: 280 }}
+        >
           <Image
             source={{ uri: photoUri }}
-            className="w-full h-24 rounded-2xl"
-            resizeMode="cover"
+            className="w-full h-full"
+            resizeMode="contain"
           />
           <Pressable
             onPress={handleRemovePhoto}
             accessible
-            accessibilityLabel="Remove photo"
+            accessibilityLabel={t('rate.photo.remove')}
             accessibilityRole="button"
-            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 items-center justify-center"
+            className="absolute top-2 right-2 w-8 h-8 rounded-full items-center justify-center"
+            style={{ backgroundColor: 'rgba(0,0,0,0.60)' }}
           >
-            <Text className="text-text-inverse text-sm font-bold">✕</Text>
+            <Ionicons name="close" size={16} color="#F5F5F5" />
           </Pressable>
         </View>
       </View>
@@ -67,17 +82,20 @@ export default function PhotoUploader({
     <Pressable
       onPress={handlePickPhoto}
       accessible
-      accessibilityLabel="Tap to upload a photo"
+      accessibilityLabel={t('rate.photo.tapToUpload')}
       accessibilityRole="button"
-      className="mt-4 h-24 rounded-2xl items-center justify-center"
+      className="mt-4 rounded-2xl items-center justify-center py-6"
       style={{
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderStyle: 'dashed',
-        borderColor: '#E5E7EB',
+        borderColor: '#2C2C2E',
+        minHeight: 72,
       }}
     >
-      <Text className="text-2xl">📷</Text>
-      <Text className="text-sm text-text-secondary mt-1">Tap to upload</Text>
+      <Ionicons name="camera-outline" size={28} color="#8E8E93" />
+      <Text className="text-sm text-text-secondary mt-2">
+        {t('rate.photo.tapToUpload')}
+      </Text>
     </Pressable>
   );
 }

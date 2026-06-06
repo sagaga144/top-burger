@@ -42,6 +42,7 @@ export interface Review {
   scores: ReviewScores;
   averageScore: number;
   photoUrl: string | null;
+  photoAspectRatio?: number;
   eatenWith: string[];
   createdAt: Timestamp;
 }

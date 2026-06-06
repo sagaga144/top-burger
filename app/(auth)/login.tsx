@@ -162,11 +162,7 @@ export default function LoginScreen() {
               style={
                 mode === 'login'
                   ? {
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.06,
-                      shadowRadius: 4,
-                      elevation: 2,
+                      boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
                     }
                   : undefined
               }
@@ -194,11 +190,7 @@ export default function LoginScreen() {
               style={
                 mode === 'signup'
                   ? {
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.06,
-                      shadowRadius: 4,
-                      elevation: 2,
+                      boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
                     }
                   : undefined
               }

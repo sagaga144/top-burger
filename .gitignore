@@ -8,5 +8,6 @@ node_modules
 .env
 .env.local
 
-# Claude Code worktrees (temporary isolated branches)
-.claude/worktrees/
+# Claude Code — kept locally, not published (agent configs, memory, hooks)
+.claude/
+CLAUDE.md

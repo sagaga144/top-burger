@@ -124,8 +124,4 @@ npx expo export --platform web
 firebase deploy --only hosting
 ```
 
-For iOS/Android builds and store submission, see `/eas-build` and `/store-submit` in this project's Claude Code setup.
-
-## Claude Code Workflow
-
-This repo is developed with a multi-agent Claude Code pipeline (project-manager → researcher → designer → engineer → reviewers), backed by a guard layer of automatic hooks (blocking a stray `git push`, a commit with a leaked key, or an edit to `firebase.json`/`.env`) and a `/verify` command that runs the type-check gate. See [`CLAUDE.md`](./CLAUDE.md) for the orchestration protocol, the agent roster, and available skills — including `/app-architecture` for the full technical reference (schema details, navigation tree, design tokens, and conventions for adding new screens, services, and components).
+For iOS/Android builds and store submission, see `firebase.json` and your EAS project configuration.

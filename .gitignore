@@ -11,3 +11,6 @@ node_modules
 # Claude Code — kept locally, not published (agent configs, memory, hooks)
 .claude/
 CLAUDE.md
+
+# Stray Next.js build cache (not part of this Expo app)
+.next/

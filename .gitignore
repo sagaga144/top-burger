@@ -14,3 +14,8 @@ CLAUDE.md
 
 # Stray Next.js build cache (not part of this Expo app)
 .next/
+
+# Build output and local tool caches (rebuilt by `npx expo export --platform web`)
+dist/
+.expo/
+.firebase/

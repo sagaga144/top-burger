@@ -1,127 +1,124 @@
 # 🍔 Top Burger
 
-A mobile-first app for finding, rating, and ranking burger restaurants — anywhere in the world. Search for a place, score it across 7 categories, tag the friends who were there, and see how it stacks up on the live leaderboard.
+Rate burger joints anywhere in the world across 7 categories, tag the friends you ate with, and watch a live community leaderboard.
 
-Built with React Native + Expo, deployed to iOS, Android, and the web (as an installable PWA).
+[![CI](https://github.com/sagaga144/top-burger/actions/workflows/ci.yml/badge.svg)](https://github.com/sagaga144/top-burger/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Expo SDK 54](https://img.shields.io/badge/Expo-SDK%2054-000020?logo=expo)
+![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+
+**Try it:** [top-burger-20976.web.app](https://top-burger-20976.web.app). It's an installable PWA; sign up with any email.
+
+<p align="center">
+  <img src="docs/screenshots/leaderboard.png" width="200" alt="Leaderboard" />
+  <img src="docs/screenshots/rating.png" width="200" alt="Rating flow" />
+  <img src="docs/screenshots/restaurant.png" width="200" alt="Restaurant page" />
+  <img src="docs/screenshots/hebrew.png" width="200" alt="Hebrew (RTL)" />
+</p>
+
+One React Native + Expo codebase for iOS, Android and the web.
 
 ## Features
 
-- **Global restaurant search** — search any restaurant worldwide (via [Photon](https://photon.komoot.io/), an open geocoding API built on OpenStreetMap), with an optional country filter and multilingual results. No search API key required.
-- **"Can't find it?" manual entry** — add a restaurant by name/address if it's not in search results.
-- **7-category rating** — each review scores *Over the Top*, *Priciness*, *Meat Quality*, *Service*, *Vibes*, *The Sides*, and *After Effect* (1–10 each), averaged into an overall score.
-- **Photo uploads** — attach a photo to a review (via Cloudinary), rendered at its correct aspect ratio.
-- **Eaten-with tagging** — tag up to 5 friends on a review; it's saved to everyone's profile at once.
-- **Live leaderboard** — restaurants ranked by average score, updated in real time via Firestore subscriptions.
-- **Profile** — a user's review history, with the ability to delete their own reviews.
-- **Hebrew + English i18n** — full RTL support, with in-app language switching.
-- **Installable PWA** — the web build supports "Add to Home Screen" on iOS/Android with proper safe-area handling.
+- **Global restaurant search** via [Photon](https://photon.komoot.io/) (OpenStreetMap), with a country filter and results in the UI language. No API key.
+- **Manual entry** for places search can't find.
+- **7-category rating.** *Over the Top, Priciness, Meat Quality, Service, Vibes, The Sides* and *After Effect*, each 1–10, averaged into one score.
+- **Photo uploads** to Cloudinary, displayed at their real aspect ratio.
+- **Eaten-with tagging.** Tag up to 5 friends and the review lands on every profile at once.
+- **Live leaderboard and restaurant pages** through Firestore real-time subscriptions.
+- **Profiles** with review history, editable usernames and deleting your own reviews.
+- **English and Hebrew** with full RTL layout and in-app language switching.
+- **Installable PWA** with iOS home-indicator safe-area handling.
+
+## Engineering notes
+
+- **Search without an API key.** Search started on Google Places (needs a billed API key), moved to Nominatim, and settled on Photon, an OpenStreetMap geocoder with multilingual results and no key. Photon can't filter by country server-side, so `lib/places.ts` over-fetches, filters on `countrycode`, and keeps only food amenities (`restaurant`, `fast_food`, …) when any match.
+- **Cloudinary instead of Firebase Storage.** Storage requires the paid Blaze plan, so review photos go to Cloudinary through an unsigned upload preset. The whole backend stays on Firebase's free Spark plan.
+- **Transactional score aggregates.** Restaurant and user averages are stored as running aggregates so the leaderboard is a single ordered query. Saving a review with tagged friends writes one review per participant and updates the restaurant and every participant's stats in one Firestore transaction, and deleting a review reverses it the same way. Security rules check every aggregate write, with the bounds below.
+- **Full RTL i18n.** UI strings live in `locales/en.json` and `locales/he.json`. Switching to Hebrew flips layout direction with `I18nManager.forceRTL` and prompts a restart (a page reload on web), so the whole tree re-renders in the new direction.
+- **iOS PWA safe areas.** `useSafeAreaInsets()` returns 0 in an installed iOS PWA ([expo/expo#26011](https://github.com/expo/expo/issues/26011)), so the tab bar was clipped by the home indicator. It took eight commits over two days to fix. The final fix in `app/+html.tsx` pads `body` with CSS `env(safe-area-inset-*)`, enforces a 34px minimum in `display-mode: standalone` in case `env()` under-reports, and paints the strip in the tab-bar color with a background gradient instead of an overlay.
 
 ## Tech Stack
 
 | Concern | Tech |
 |---|---|
-| Framework | React Native + Expo SDK 54 |
+| Framework | React Native 0.81 + Expo SDK 54 |
 | Routing | expo-router v6 (file-based) |
 | Styling | NativeWind v4 (Tailwind for RN) |
-| Backend / Auth / DB | Firebase JS SDK v10 (Firestore + Auth, email/password) |
-| Restaurant search | [Photon](https://photon.komoot.io/) (OpenStreetMap-based, free, no key) |
-| Photo hosting | Cloudinary (unsigned upload preset) |
-| Local persistence | AsyncStorage |
-| i18n | i18next / react-i18next (English + Hebrew) |
+| Backend | Firebase JS SDK v10: Firestore + Auth (email/password) |
+| Search | Photon (OpenStreetMap) |
+| Photos | Cloudinary (unsigned upload preset) |
+| i18n | i18next / react-i18next |
 | Language | TypeScript (strict) |
-| Testing | Jest (jest-expo preset) |
-| Web hosting | Firebase Hosting (primary) / Vercel (config present) |
+| Testing | Jest (jest-expo), `@firebase/rules-unit-testing` + Firestore emulator |
+| CI / Hosting | GitHub Actions, Firebase Hosting |
 
 ## Project Structure
 
 ```
 app/
 ├── _layout.tsx                    # Root stack + auth guard
-├── +html.tsx                      # Web export HTML shell (PWA safe-area CSS)
-├── (auth)/
-│   └── login.tsx                  # Sign in / register / password reset
+├── +html.tsx                      # Web HTML shell (PWA safe-area CSS)
+├── (auth)/login.tsx               # Sign in / sign up / password reset
 ├── (app)/
-│   ├── _layout.tsx                 # Tab bar (Rankings, Rate, Profile)
-│   ├── index.tsx                   # Leaderboard
-│   ├── search.tsx                  # Restaurant search + country filter + manual entry
-│   ├── profile.tsx                 # User profile + review history
-│   ├── rate/[placeId].tsx          # 7-score rating flow + photo + tag friends
-│   └── summary/[reviewId].tsx      # Review summary / delete
-└── restaurant/[restaurantId].tsx   # Restaurant detail — all reviews for a place
+│   ├── _layout.tsx                # Tab bar (Rankings, Rate, Profile)
+│   ├── index.tsx                  # Leaderboard
+│   ├── search.tsx                 # Search + country filter + manual entry
+│   ├── profile.tsx                # Profile + review history
+│   ├── rate/[placeId].tsx         # 7-score rating + photo + tag friends
+│   └── summary/[reviewId].tsx     # Review summary / delete
+└── restaurant/[restaurantId].tsx  # All reviews for a place
 
-components/          # RestaurantCard, ScoreSelector, PhotoUploader, CountryPickerModal, LanguageToggle
-constants/           # colors.ts (theme tokens), ratingQuestions.ts (the 7 score categories)
-lib/                 # firebase(.web).ts, firestore.ts (CRUD + real-time), places.ts (Photon search), i18n(.web).ts
-store/               # authStore.tsx — Firebase auth context
-types/               # Shared TypeScript interfaces
-locales/             # en.json, he.json
-__tests__/           # Jest tests
+lib/            # firebase, firestore (reads + transactional writes), scoring, places (Photon), i18n
+components/     # RestaurantCard, ScoreSelector, PhotoUploader, CountryPickerModal, LanguageToggle
+constants/      # Theme tokens, the 7 rating categories
+locales/        # en.json, he.json
+rules-tests/    # Firestore security rules tests (emulator)
+scripts/        # One-off admin data migration
 ```
 
 ## Getting Started
 
-### Prerequisites
-- Node.js and npm
-- Expo CLI (`npx expo`, no global install needed)
-- A Firebase project (Firestore + Auth enabled)
-- A Cloudinary account with an unsigned upload preset (for photo uploads)
-
-### Install
+You need Node.js, a Firebase project with Firestore and email/password Auth enabled, and a Cloudinary account with an unsigned upload preset.
 
 ```bash
 npm install
+cp .env.example .env    # fill in your Firebase and Cloudinary values
+npm start               # Expo dev server (also: npm run ios / android / web)
 ```
 
-### Environment variables
-
-Create a `.env` file in the project root:
-
-```bash
-# Firebase configuration
-EXPO_PUBLIC_FIREBASE_API_KEY=
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-EXPO_PUBLIC_FIREBASE_APP_ID=
-
-# Cloudinary (unsigned upload preset — used for review photo uploads)
-EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=
-EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=
-```
-
-> Restaurant search uses Photon and needs no API key. Firebase Storage isn't used (it requires a paid Blaze plan) — photos go to Cloudinary instead.
-
-### Run
-
-```bash
-npm start        # Expo dev server — scan the QR code with Expo Go
-npm run ios       # iOS simulator
-npm run android   # Android emulator
-npm run web       # Web (localhost)
-```
-
-### Test
-
-```bash
-npx jest
-```
+| Script | What it runs |
+|---|---|
+| `npm test` | Jest unit tests (Firebase is mocked) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test:rules` | Security rules tests against the Firestore emulator (needs the Firebase CLI and Java 21+) |
 
 ## Data Model (Firestore)
 
-- **`restaurants`** — `placeId`, `name`, `address`, `reviewCount`, `averageScore` (aggregate, updated transactionally on each review write/delete)
-- **`reviews`** — one document per participant per rating session; `scores` (the 7 categories), `averageScore`, `photoUrl`, `photoAspectRatio`, `eatenWith` (uids), `authorId`/`userId`
-- **`users`** — `email`, `displayName`, `displayNameLower` (for prefix search), `totalReviews`, `averageScoreGiven`
+- **`restaurants/{placeId}`**: `name`, `address`, `reviewCount`, `averageScore`. Public read.
+- **`reviews`**: one document per participant per rating session. Fields: `restaurantId`, `userId` (whose profile it's on), `authorId` (who wrote it), `userName`, `scores` (7 categories), `averageScore`, `photoUrl`, `photoAspectRatio`, `eatenWith` (participant uids), `createdAt`. Public read.
+- **`users/{uid}`**: `displayName`, `displayNameLower` (prefix search), `totalReviews`, `averageScoreGiven`. Readable by signed-in users for friend search, so emails are never stored in Firestore.
 
-Security rules (`firestore.rules`) require authentication for all writes, and every write path verifies `request.auth.uid` matches the acting user server-side.
+### Security rules
+
+[`firestore.rules`](firestore.rules) allows each write only for its purpose in the app, and [`rules-tests/`](rules-tests/firestore.rules.test.ts) checks both the app's real write paths and the abuse cases against the emulator.
+
+- **Users.** You write only your own doc, with known fields only. No email, and `displayNameLower` must match `displayName`. Other users may change only your `totalReviews` and `averageScoreGiven`, and only by one review at a time. That happens when they tag you or delete a copy they tagged you on.
+- **Reviews.** Created only with `authorId` equal to the signed-in user. Every participant must be listed in `eatenWith` (at most 6), and each copy's `userName` must match its owner's display name. Scores must be integers 1–10, a photo must be on Cloudinary, and the restaurant must exist. Only the author can edit a review, and never who or what it's about. The author or the tagged owner can delete it.
+- **Restaurants.** Created only with exactly the expected fields. After that only `reviewCount` (−1, or +1 to +6) and `averageScore` (1–10) may change. A restaurant can be deleted only with its last review.
+
+One limit: without Cloud Functions (Blaze plan), rules can't recompute an aggregate from the reviews behind it. A modified client could still nudge stats within those bounds.
 
 ## Deployment
 
-The web build exports as static files and deploys to Firebase Hosting:
+The web build is a static export on Firebase Hosting. `dist/` is generated and not committed:
 
 ```bash
-npx expo export --platform web
+npx expo export --platform web   # builds dist/
 firebase deploy --only hosting
+firebase deploy --only firestore:rules
 ```
 
-For iOS/Android builds and store submission, see `firebase.json` and your EAS project configuration.
+---
+
+MIT © 2026 Sagi Tal · Developed with a Claude Code harness generated by claude-harness-bootstrap

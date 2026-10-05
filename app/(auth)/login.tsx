@@ -83,7 +83,7 @@ export default function LoginScreen() {
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await setDoc(doc(db, 'users', cred.user.uid), {
           displayName: displayName.trim(),
-          email: email.trim(),
+          displayNameLower: displayName.trim().toLowerCase(),
           totalReviews: 0,
           averageScoreGiven: 0,
           createdAt: serverTimestamp(),

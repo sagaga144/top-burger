@@ -8,10 +8,10 @@ import {
   orderBy,
   where,
   limit,
-  writeBatch,
   runTransaction,
   serverTimestamp,
   onSnapshot,
+  deleteField,
 } from 'firebase/firestore';
 import { Platform } from 'react-native';
 import { db, auth } from './firebase';
@@ -22,6 +22,12 @@ import {
   ReviewWithId,
   AppUser,
 } from '../types';
+import {
+  MAX_COMPANIONS,
+  computeAverage,
+  addToAggregate,
+  removeFromAggregate,
+} from './scoring';
 
 // ---- Helpers ----
 
@@ -86,15 +92,6 @@ async function uploadReviewPhoto(uri: string): Promise<string> {
     throw new Error('Photo upload failed: no URL returned.');
   }
   return data.secure_url;
-}
-
-function computeAverage(scores: ReviewScores): number {
-  const values = Object.values(scores) as number[];
-  if (values.some((v) => !Number.isInteger(v) || v < 1 || v > 10)) {
-    throw new Error('Each score must be an integer between 1 and 10.');
-  }
-  const sum = values.reduce((a, b) => a + b, 0);
-  return Math.round((sum / values.length) * 10) / 10;
 }
 
 // ---- Restaurants ----
@@ -177,121 +174,6 @@ export async function getUserReviews(userId: string): Promise<ReviewWithId[]> {
   }));
 }
 
-// ---- Save Review (atomic transaction) ----
-
-export interface SaveReviewParams {
-  placeId: string;
-  restaurantName: string;
-  restaurantAddress: string;
-  userId: string;
-  userEmail: string;
-  scores: ReviewScores;
-  photoUri: string | null;
-  photoAspectRatio?: number;
-}
-
-export async function saveReview(params: SaveReviewParams): Promise<string> {
-  const currentUid = auth.currentUser?.uid;
-  if (!currentUid) throw new Error('Not authenticated');
-  if (currentUid !== params.userId) throw new Error('Not authorized');
-
-  const {
-    placeId,
-    restaurantName,
-    restaurantAddress,
-    userId,
-    userEmail,
-    scores,
-    photoUri,
-    photoAspectRatio,
-  } = params;
-
-  const averageScore = computeAverage(scores);
-
-  // Upload photo first (outside transaction — the upload is not transactional)
-  let photoUrl: string | null = null;
-  if (photoUri) {
-    photoUrl = await uploadReviewPhoto(photoUri);
-  }
-
-  const restaurantRef = doc(db, 'restaurants', placeId);
-  const userRef = doc(db, 'users', userId);
-  const reviewRef = doc(collection(db, 'reviews'));
-
-  await runTransaction(db, async (transaction) => {
-    // Read restaurant document
-    const restaurantSnap = await transaction.get(restaurantRef);
-    const userData = await transaction.get(userRef);
-
-    // Compute updated restaurant aggregate
-    let newReviewCount = 1;
-    let newAverageScore = averageScore;
-
-    if (restaurantSnap.exists()) {
-      const existing = restaurantSnap.data();
-      const oldCount: number = existing.reviewCount ?? 0;
-      const oldAvg: number = existing.averageScore ?? 0;
-      newReviewCount = oldCount + 1;
-      newAverageScore =
-        Math.round(((oldAvg * oldCount + averageScore) / newReviewCount) * 10) /
-        10;
-    }
-
-    // Compute updated user aggregate
-    let newTotalReviews = 1;
-    let newAvgScoreGiven = averageScore;
-
-    if (userData.exists()) {
-      const ud = userData.data();
-      const oldTotal: number = ud.totalReviews ?? 0;
-      const oldAvgGiven: number = ud.averageScoreGiven ?? 0;
-      newTotalReviews = oldTotal + 1;
-      newAvgScoreGiven =
-        Math.round(
-          ((oldAvgGiven * oldTotal + averageScore) / newTotalReviews) * 10
-        ) / 10;
-    }
-
-    // Write restaurant (upsert)
-    transaction.set(restaurantRef, {
-      placeId,
-      name: restaurantName,
-      address: restaurantAddress,
-      reviewCount: newReviewCount,
-      averageScore: newAverageScore,
-    });
-
-    // Write review
-    transaction.set(reviewRef, {
-      restaurantId: placeId,
-      restaurantName,
-      restaurantAddress,
-      userId,
-      userEmail,
-      scores,
-      averageScore,
-      photoUrl,
-      ...(photoUrl && photoAspectRatio != null ? { photoAspectRatio } : {}),
-      createdAt: serverTimestamp(),
-    });
-
-    // Write/update user document
-    transaction.set(
-      userRef,
-      {
-        email: userEmail,
-        displayNameLower: (userData.exists() ? userData.data().displayName || userEmail : userEmail).toLowerCase(),
-        totalReviews: newTotalReviews,
-        averageScoreGiven: newAvgScoreGiven,
-        ...(userData.exists() ? {} : { createdAt: serverTimestamp() }),
-      },
-      { merge: true }
-    );
-  });
-
-  return reviewRef.id;
-}
-
 // ---- User ----
 
 export async function getUserProfile(userId: string): Promise<AppUser | null> {
@@ -311,61 +193,52 @@ export async function updateUsername(uid: string, username: string): Promise<voi
   }, { merge: true });
 }
 
+// Deletes one review and rolls back the restaurant and owner aggregates in a
+// single transaction, so concurrent writes can't lose an update. Allowed for
+// the review's owner (userId) and for the author who created it (authorId).
 export async function deleteReview(reviewId: string): Promise<void> {
   const currentUid = auth.currentUser?.uid;
   if (!currentUid) throw new Error('Not authenticated');
 
   const reviewRef = doc(db, 'reviews', reviewId);
-  const reviewSnap = await getDoc(reviewRef);
-  if (!reviewSnap.exists()) return;
 
-  const review = reviewSnap.data();
-  if (currentUid !== review.userId && currentUid !== review.authorId) {
-    throw new Error('Not authorized to delete this review');
-  }
-  const restaurantId = review.restaurantId as string;
-  const reviewScore = review.averageScore as number;
-  const userId = review.userId as string;
+  await runTransaction(db, async (transaction) => {
+    const reviewSnap = await transaction.get(reviewRef);
+    if (!reviewSnap.exists()) return;
 
-  const restaurantRef = doc(db, 'restaurants', restaurantId);
-  const userRef = doc(db, 'users', userId);
-  const [restaurantSnap, userSnap] = await Promise.all([
-    getDoc(restaurantRef),
-    getDoc(userRef),
-  ]);
-
-  const batch = writeBatch(db);
-  batch.delete(reviewRef);
-
-  // Update restaurant aggregate
-  if (restaurantSnap.exists()) {
-    const r = restaurantSnap.data();
-    const oldCount: number = r.reviewCount ?? 1;
-    const oldAvg: number = r.averageScore ?? reviewScore;
-    const newCount = oldCount - 1;
-    if (newCount <= 0) {
-      batch.delete(restaurantRef);
-    } else {
-      const newAvg = Math.round(((oldAvg * oldCount - reviewScore) / newCount) * 10) / 10;
-      batch.update(restaurantRef, { reviewCount: newCount, averageScore: newAvg });
+    const review = reviewSnap.data();
+    if (currentUid !== review.userId && currentUid !== review.authorId) {
+      throw new Error('Not authorized to delete this review');
     }
-  }
+    const reviewScore = review.averageScore as number;
+    const restaurantRef = doc(db, 'restaurants', review.restaurantId as string);
+    const userRef = doc(db, 'users', review.userId as string);
 
-  // Update user stats
-  if (userSnap.exists()) {
-    const u = userSnap.data();
-    const oldTotal: number = u.totalReviews ?? 1;
-    const oldAvgGiven: number = u.averageScoreGiven ?? reviewScore;
-    const newTotal = Math.max(0, oldTotal - 1);
-    if (newTotal === 0) {
-      batch.update(userRef, { totalReviews: 0, averageScoreGiven: 0 });
-    } else {
-      const newAvgGiven = Math.round(((oldAvgGiven * oldTotal - reviewScore) / newTotal) * 10) / 10;
-      batch.update(userRef, { totalReviews: newTotal, averageScoreGiven: newAvgGiven });
+    const [restaurantSnap, userSnap] = await Promise.all([
+      transaction.get(restaurantRef),
+      transaction.get(userRef),
+    ]);
+
+    transaction.delete(reviewRef);
+
+    // Restaurant aggregate: delete the restaurant when its last review goes
+    if (restaurantSnap.exists()) {
+      const r = restaurantSnap.data();
+      const next = removeFromAggregate(r.reviewCount ?? 1, r.averageScore ?? reviewScore, reviewScore);
+      if (next.count === 0) {
+        transaction.delete(restaurantRef);
+      } else {
+        transaction.update(restaurantRef, { reviewCount: next.count, averageScore: next.average });
+      }
     }
-  }
 
-  await batch.commit();
+    // Owner's stats (the owner may be a tagged friend when the author deletes)
+    if (userSnap.exists()) {
+      const u = userSnap.data();
+      const next = removeFromAggregate(u.totalReviews ?? 1, u.averageScoreGiven ?? reviewScore, reviewScore);
+      transaction.update(userRef, { totalReviews: next.count, averageScoreGiven: next.average });
+    }
+  });
 }
 
 // ---- User Search ----
@@ -404,11 +277,10 @@ export async function searchUsersByDisplayName(
   return results.slice(0, 5);
 }
 
-// ---- Save Review for Multiple Users ----
+// ---- Save Review (atomic transaction) ----
 
 export interface SaveReviewForMultipleUsersParams {
   authorUid: string;
-  authorEmail: string;
   taggedUids: string[];
   taggedUsers?: UserSearchResult[];
   placeId: string;
@@ -419,18 +291,19 @@ export interface SaveReviewForMultipleUsersParams {
   photoAspectRatio?: number;
 }
 
+// Saves one review document per participant (the author plus up to
+// MAX_COMPANIONS tagged friends) and updates the restaurant aggregate and every
+// participant's stats in a single transaction. Each review document counts
+// once toward the restaurant's reviewCount, matching what deleteReview removes.
 export async function saveReviewForMultipleUsers(
   params: SaveReviewForMultipleUsersParams
 ): Promise<void> {
   const currentUid = auth.currentUser?.uid;
   if (!currentUid) throw new Error('Not authenticated');
   if (currentUid !== params.authorUid) throw new Error('Not authorized');
-  if (params.taggedUids.length > 5) throw new Error('Too many tagged companions');
 
   const {
     authorUid,
-    authorEmail,
-    taggedUids,
     taggedUsers = [],
     placeId,
     placeName,
@@ -440,85 +313,100 @@ export async function saveReviewForMultipleUsers(
     photoAspectRatio,
   } = params;
 
+  const taggedUids = Array.from(new Set(params.taggedUids)).filter((uid) => uid !== authorUid);
+  if (taggedUids.length > MAX_COMPANIONS) throw new Error('Too many tagged companions');
+
   const averageScore = computeAverage(scores);
   const allParticipantUids = [authorUid, ...taggedUids];
 
-  // Upload photo once outside of the batch (the upload is not transactional)
+  // Upload photo once before the transaction (the upload is not transactional)
   let photoUrl: string | null = null;
   if (photoUri) {
     photoUrl = await uploadReviewPhoto(photoUri);
   }
 
   const taggedUserMap = new Map(taggedUsers.map((u) => [u.uid, u]));
-  const batch = writeBatch(db);
-
-  // Write one review document per participant
-  for (const participantUid of allParticipantUids) {
-    const reviewRef = doc(collection(db, 'reviews'));
-    batch.set(reviewRef, {
-      restaurantId: placeId,
-      restaurantName: placeName,
-      restaurantAddress: placeAddress,
-      userId: participantUid,
-      authorId: authorUid,
-      userEmail: participantUid === authorUid ? authorEmail : '',
-      scores,
-      averageScore,
-      photoUrl,
-      ...(photoUrl && photoAspectRatio != null ? { photoAspectRatio } : {}),
-      eatenWith: allParticipantUids,
-      createdAt: serverTimestamp(),
-    });
-  }
-
-  // Read docs needed for aggregates before batch
   const restaurantRef = doc(db, 'restaurants', placeId);
-  const authorUserRef = doc(db, 'users', authorUid);
-  const [restaurantSnap, authorSnap] = await Promise.all([
-    getDoc(restaurantRef),
-    getDoc(authorUserRef),
-  ]);
+  const authorRef = doc(db, 'users', authorUid);
+  const taggedRefs = taggedUids.map((uid) => doc(db, 'users', uid));
+  const reviewRefs = allParticipantUids.map(() => doc(collection(db, 'reviews')));
 
-  // Upsert restaurant aggregate
-  let newReviewCount = 1;
-  let newAverageScore = averageScore;
-  if (restaurantSnap.exists()) {
-    const existing = restaurantSnap.data();
-    const oldCount: number = existing.reviewCount ?? 0;
-    const oldAvg: number = existing.averageScore ?? 0;
-    newReviewCount = oldCount + 1;
-    newAverageScore =
-      Math.round(((oldAvg * oldCount + averageScore) / newReviewCount) * 10) / 10;
-  }
-  batch.set(restaurantRef, {
-    placeId,
-    name: placeName,
-    address: placeAddress,
-    reviewCount: newReviewCount,
-    averageScore: newAverageScore,
+  await runTransaction(db, async (transaction) => {
+    // All reads happen before any write, as transactions require
+    const [restaurantSnap, authorSnap, ...taggedSnaps] = await Promise.all([
+      transaction.get(restaurantRef),
+      transaction.get(authorRef),
+      ...taggedRefs.map((ref) => transaction.get(ref)),
+    ]);
+
+    const authorName: string = authorSnap.exists() ? authorSnap.data().displayName ?? '' : '';
+    const nameFor = (uid: string, index: number): string => {
+      if (uid === authorUid) return authorName;
+      const snap = taggedSnaps[index - 1];
+      return (snap.exists() ? snap.data().displayName : undefined)
+        ?? taggedUserMap.get(uid)?.displayName
+        ?? '';
+    };
+
+    // One review document per participant
+    allParticipantUids.forEach((participantUid, i) => {
+      transaction.set(reviewRefs[i], {
+        restaurantId: placeId,
+        restaurantName: placeName,
+        restaurantAddress: placeAddress,
+        userId: participantUid,
+        authorId: authorUid,
+        userName: nameFor(participantUid, i),
+        scores,
+        averageScore,
+        photoUrl,
+        ...(photoUrl && photoAspectRatio != null ? { photoAspectRatio } : {}),
+        eatenWith: allParticipantUids,
+        createdAt: serverTimestamp(),
+      });
+    });
+
+    // Restaurant aggregate. Only the aggregate fields change once the
+    // restaurant exists, so a name returned in another language doesn't
+    // overwrite the stored one.
+    const added = allParticipantUids.length;
+    if (restaurantSnap.exists()) {
+      const r = restaurantSnap.data();
+      const next = addToAggregate(r.reviewCount ?? 0, r.averageScore ?? 0, averageScore, added);
+      transaction.update(restaurantRef, { reviewCount: next.count, averageScore: next.average });
+    } else {
+      transaction.set(restaurantRef, {
+        placeId,
+        name: placeName,
+        address: placeAddress,
+        reviewCount: added,
+        averageScore,
+      });
+    }
+
+    // Author stats. Also clears the legacy email field: emails are no longer
+    // stored on user docs, which any signed-in user can read.
+    const authorStats = authorSnap.exists()
+      ? addToAggregate(authorSnap.data().totalReviews ?? 0, authorSnap.data().averageScoreGiven ?? 0, averageScore)
+      : { count: 1, average: averageScore };
+    transaction.set(
+      authorRef,
+      {
+        ...(authorName ? { displayNameLower: authorName.toLowerCase() } : {}),
+        totalReviews: authorStats.count,
+        averageScoreGiven: authorStats.average,
+        email: deleteField(),
+        ...(authorSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+      },
+      { merge: true }
+    );
+
+    // Tagged friends' stats, so deleting their copy later rolls back cleanly
+    taggedSnaps.forEach((snap, i) => {
+      if (!snap.exists()) return;
+      const u = snap.data();
+      const next = addToAggregate(u.totalReviews ?? 0, u.averageScoreGiven ?? 0, averageScore);
+      transaction.update(taggedRefs[i], { totalReviews: next.count, averageScoreGiven: next.average });
+    });
   });
-
-  // Update author user stats
-  let newTotalReviews = 1;
-  let newAvgScoreGiven = averageScore;
-  if (authorSnap.exists()) {
-    const ud = authorSnap.data();
-    const oldTotal: number = ud.totalReviews ?? 0;
-    const oldAvgGiven: number = ud.averageScoreGiven ?? 0;
-    newTotalReviews = oldTotal + 1;
-    newAvgScoreGiven = Math.round(((oldAvgGiven * oldTotal + averageScore) / newTotalReviews) * 10) / 10;
-  }
-  batch.set(
-    authorUserRef,
-    {
-      email: authorEmail,
-      displayNameLower: (authorSnap.exists() ? authorSnap.data().displayName || authorEmail : authorEmail).toLowerCase(),
-      totalReviews: newTotalReviews,
-      averageScoreGiven: newAvgScoreGiven,
-      ...(authorSnap.exists() ? {} : { createdAt: serverTimestamp() }),
-    },
-    { merge: true }
-  );
-
-  await batch.commit();
 }

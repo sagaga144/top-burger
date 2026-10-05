@@ -21,6 +21,7 @@ import {
   searchUsersByDisplayName,
   UserSearchResult,
 } from '../../../lib/firestore';
+import { MAX_COMPANIONS, addCompanion } from '../../../lib/scoring';
 import { ReviewScores } from '../../../types';
 
 type PartialScores = Partial<ReviewScores>;
@@ -156,11 +157,9 @@ export default function RateScreen() {
     };
   }, [friendQuery, user]);
 
-  const MAX_COMPANIONS = 5;
-
   const handleSelectFriend = (friend: UserSearchResult) => {
     if (selectedFriends.length >= MAX_COMPANIONS) return;
-    setSelectedFriends((prev) => [...prev, friend]);
+    setSelectedFriends((prev) => addCompanion(prev, friend));
     setFriendQuery('');
     setSearchResults([]);
   };
@@ -190,7 +189,6 @@ export default function RateScreen() {
 
       await saveReviewForMultipleUsers({
         authorUid: user.uid,
-        authorEmail: user.email ?? '',
         taggedUids: selectedFriends.map((f) => f.uid),
         taggedUsers: selectedFriends,
         placeId,

@@ -191,11 +191,12 @@ export default function SummaryScreen() {
           <Text className="text-sm text-text-secondary mt-0.5" numberOfLines={1}>
             {review.restaurantAddress}
           </Text>
-          {(user?.uid === review.userId || user?.uid === review.authorId) && review.userEmail ? (
+          {/* Your own email, from Auth: reviews no longer store emails */}
+          {user?.email && user.uid === review.userId && (!review.authorId || review.authorId === review.userId) ? (
             <Text className="text-xs text-text-secondary mt-1">
               {t('summary.reviewedBy')}{' '}
               <Text className="text-text-primary font-semibold">
-                {review.userEmail}
+                {user.email}
               </Text>
             </Text>
           ) : null}

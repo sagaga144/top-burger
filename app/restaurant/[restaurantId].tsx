@@ -36,7 +36,7 @@ interface ReviewRowProps {
 
 function ReviewRow({ review, onPress }: ReviewRowProps) {
   const dateStr = formatDate(review.createdAt as Parameters<typeof formatDate>[0]);
-  const label = review.userEmail ? review.userEmail.split('@')[0] : 'Anonymous';
+  const label = review.userName || (review.userEmail ? review.userEmail.split('@')[0] : 'Anonymous');
 
   return (
     <Pressable

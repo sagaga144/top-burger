@@ -19,3 +19,6 @@ CLAUDE.md
 dist/
 .expo/
 .firebase/
+
+# Firestore emulator logs
+firestore-debug.log

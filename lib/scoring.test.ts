@@ -65,6 +65,13 @@ describe('restaurant / user aggregates', () => {
     expect(removeFromAggregate(1, 7.1, 7.1)).toEqual({ count: 0, average: 0 });
   });
 
+  it('keeps averages inside 1–10 despite rounding drift', () => {
+    // Reviews of 10, 10 and 9.9 store a rounded average of 10.0; removing
+    // the 9.9 would otherwise compute 10.05 → 10.1, which the rules reject.
+    expect(removeFromAggregate(3, 10, 9.9)).toEqual({ count: 2, average: 10 });
+    expect(removeFromAggregate(3, 1, 1.1)).toEqual({ count: 2, average: 1 });
+  });
+
   it('never goes below zero', () => {
     expect(removeFromAggregate(0, 0, 7.1)).toEqual({ count: 0, average: 0 });
   });

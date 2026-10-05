@@ -282,7 +282,6 @@ export async function searchUsersByDisplayName(
 export interface SaveReviewForMultipleUsersParams {
   authorUid: string;
   taggedUids: string[];
-  taggedUsers?: UserSearchResult[];
   placeId: string;
   placeName: string;
   placeAddress: string;
@@ -304,10 +303,7 @@ export async function saveReviewForMultipleUsers(
 
   const {
     authorUid,
-    taggedUsers = [],
     placeId,
-    placeName,
-    placeAddress,
     scores,
     photoUri,
     photoAspectRatio,
@@ -316,6 +312,9 @@ export async function saveReviewForMultipleUsers(
   const taggedUids = Array.from(new Set(params.taggedUids)).filter((uid) => uid !== authorUid);
   if (taggedUids.length > MAX_COMPANIONS) throw new Error('Too many tagged companions');
 
+  // Same limits as firestore.rules; Photon names are well under them
+  const placeName = params.placeName.slice(0, 300);
+  const placeAddress = params.placeAddress.slice(0, 500);
   const averageScore = computeAverage(scores);
   const allParticipantUids = [authorUid, ...taggedUids];
 
@@ -325,7 +324,6 @@ export async function saveReviewForMultipleUsers(
     photoUrl = await uploadReviewPhoto(photoUri);
   }
 
-  const taggedUserMap = new Map(taggedUsers.map((u) => [u.uid, u]));
   const restaurantRef = doc(db, 'restaurants', placeId);
   const authorRef = doc(db, 'users', authorUid);
   const taggedRefs = taggedUids.map((uid) => doc(db, 'users', uid));
@@ -339,14 +337,12 @@ export async function saveReviewForMultipleUsers(
       ...taggedRefs.map((ref) => transaction.get(ref)),
     ]);
 
-    const authorName: string = authorSnap.exists() ? authorSnap.data().displayName ?? '' : '';
-    const nameFor = (uid: string, index: number): string => {
-      if (uid === authorUid) return authorName;
-      const snap = taggedSnaps[index - 1];
-      return (snap.exists() ? snap.data().displayName : undefined)
-        ?? taggedUserMap.get(uid)?.displayName
-        ?? '';
-    };
+    // Each copy carries its owner's current display name (the rules check it)
+    const nameOf = (snap: typeof authorSnap): string =>
+      (snap.exists() ? snap.data().displayName : undefined) ?? '';
+    const authorName = nameOf(authorSnap);
+    const nameFor = (index: number): string =>
+      index === 0 ? authorName : nameOf(taggedSnaps[index - 1]);
 
     // One review document per participant
     allParticipantUids.forEach((participantUid, i) => {
@@ -356,7 +352,7 @@ export async function saveReviewForMultipleUsers(
         restaurantAddress: placeAddress,
         userId: participantUid,
         authorId: authorUid,
-        userName: nameFor(participantUid, i),
+        userName: nameFor(i),
         scores,
         averageScore,
         photoUrl,

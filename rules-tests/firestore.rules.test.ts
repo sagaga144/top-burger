@@ -235,6 +235,22 @@ describe('allowed app flows', () => {
     await assertSucceeds(deleteReview('legacy'));
   });
 
+  it('a user with a long display name can still review and be tagged', async () => {
+    const long = 'A'.repeat(80);
+    await seedUser('bob', long);
+    const reviews = await rate('alice', ['bob']);
+    expect(reviews.find((r) => r.data.userId === 'bob')?.data.userName).toBe(long);
+  });
+
+  it('deleting still works when rounding drift would push an average past 10', async () => {
+    await seed('restaurants/photon-N-1', { placeId: 'photon-N-1', name: 'B', address: '', reviewCount: 3, averageScore: 10 });
+    await seedUser('alice', 'Alice', { totalReviews: 3, averageScoreGiven: 10 });
+    await seed('reviews/drift', { ...reviewDoc({ createdAt: new Date() }), averageScore: 9.9 });
+    actAs('alice');
+    await assertSucceeds(deleteReview('drift'));
+    expect(await read('restaurants/photon-N-1')).toMatchObject({ reviewCount: 2, averageScore: 10 });
+  });
+
   it('friend search works for a signed-in user', async () => {
     actAs('alice');
     const results = await searchUsersByDisplayName('bo', 'alice');
@@ -285,6 +301,14 @@ describe('users: denied', () => {
     await assertFails(updateDoc(doc(dbAs('alice'), 'users/alice'), { email: 'alice@example.com' }));
   });
 
+  it("can't make your search name differ from your display name", async () => {
+    await assertFails(updateDoc(doc(dbAs('alice'), 'users/alice'), { displayNameLower: 'bob' }));
+  });
+
+  it("can't add arbitrary fields to your own doc", async () => {
+    await assertFails(updateDoc(doc(dbAs('alice'), 'users/alice'), { contactEmail: 'alice@example.com' }));
+  });
+
   it("can't read user docs (or their emails) while signed out", async () => {
     await assertFails(getDoc(doc(dbAs(null), 'users/alice')));
   });
@@ -314,6 +338,18 @@ describe('reviews: denied', () => {
 
   it("can't delete a review you neither wrote nor were tagged on", async () => {
     await assertFails(deleteDoc(doc(dbAs('bob'), 'reviews/r1')));
+  });
+
+  it("can't put a fake name on a friend's copy", async () => {
+    await assertFails(setDoc(doc(dbAs('alice'), 'reviews/x'), reviewDoc({ userId: 'bob', userName: 'Carol', eatenWith: ['alice', 'bob'] })));
+  });
+
+  it('control: the author may edit their own review scores', async () => {
+    await assertSucceeds(updateDoc(doc(dbAs('alice'), 'reviews/r1'), { scores: { ...SCORES, vibes: 10 }, averageScore: 7.4 }));
+  });
+
+  it("can't add fields when editing your own review", async () => {
+    await assertFails(updateDoc(doc(dbAs('alice'), 'reviews/r1'), { featured: true }));
   });
 
   it("can't create a review in someone else's name", async () => {

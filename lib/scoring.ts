@@ -23,17 +23,23 @@ export interface Aggregate {
   average: number;
 }
 
+// Stored averages are rounded, so undoing a score can drift slightly past the
+// 1–10 range (e.g. removing 9.9 from a stored 10.0 average of 3 gives 10.05).
+function clampScore(n: number): number {
+  return Math.min(10, Math.max(1, round1(n)));
+}
+
 /** Folds `added` copies of `score` into a running count/average. */
 export function addToAggregate(oldCount: number, oldAvg: number, score: number, added = 1): Aggregate {
   const count = oldCount + added;
-  return { count, average: round1((oldAvg * oldCount + score * added) / count) };
+  return { count, average: clampScore((oldAvg * oldCount + score * added) / count) };
 }
 
 /** Removes one `score` from a running count/average. Never goes below zero. */
 export function removeFromAggregate(oldCount: number, oldAvg: number, score: number): Aggregate {
   const count = Math.max(0, oldCount - 1);
   if (count === 0) return { count: 0, average: 0 };
-  return { count, average: round1((oldAvg * oldCount - score) / count) };
+  return { count, average: clampScore((oldAvg * oldCount - score) / count) };
 }
 
 /** Adds a companion unless the cap is reached or they're already selected. */

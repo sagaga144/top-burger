@@ -65,7 +65,7 @@ service cloud.firestore {
     }
 
     function validPhoto(d) {
-      return d.photoUrl == null
+      return d.get('photoUrl', null) == null
         || (d.photoUrl is string && d.photoUrl.matches('https://res[.]cloudinary[.]com/.+'));
     }
 
@@ -89,11 +89,15 @@ service cloud.firestore {
         && request.resource.data.eatenWith.size() <= 6
         && request.resource.data.eatenWith.hasAll([request.auth.uid, request.resource.data.userId])
         && request.resource.data.restaurantId is string
+        && request.resource.data.restaurantId.matches('[^/]+')
         && existsAfter(/databases/$(database)/documents/restaurants/$(request.resource.data.restaurantId))
         && request.resource.data.restaurantName is string
+        && request.resource.data.restaurantName.size() <= 300
         && request.resource.data.restaurantAddress is string
-        && request.resource.data.userName is string
-        && request.resource.data.userName.size() <= 60
+        && request.resource.data.restaurantAddress.size() <= 500
+        // The owner's current display name, so an author can't relabel a copy
+        && request.resource.data.userName
+             == get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.get('displayName', '')
         && validScores(request.resource.data.scores)
         && isNumberIn(request.resource.data.averageScore, 1, 10)
         && validPhoto(request.resource.data)
@@ -105,7 +109,14 @@ service cloud.firestore {
       // who or what the review is about.
       allow update: if signedIn()
         && authorOf(resource.data) == request.auth.uid
-        && !changedKeys().hasAny(['userId', 'authorId', 'restaurantId', 'eatenWith', 'createdAt', 'userEmail'])
+        && request.resource.data.keys().hasOnly([
+             'restaurantId', 'restaurantName', 'restaurantAddress', 'userId', 'authorId',
+             'userName', 'userEmail', 'scores', 'averageScore', 'photoUrl', 'photoAspectRatio',
+             'eatenWith', 'createdAt'])
+        && !changedKeys().hasAny(['userId', 'authorId', 'userName', 'userEmail', 'restaurantId',
+             'restaurantName', 'restaurantAddress', 'eatenWith', 'createdAt'])
+        && (!('photoAspectRatio' in request.resource.data)
+            || isNumberIn(request.resource.data.photoAspectRatio, 0.05, 20))
         && validScores(request.resource.data.scores)
         && isNumberIn(request.resource.data.averageScore, 1, 10)
         && validPhoto(request.resource.data);
@@ -127,14 +138,36 @@ service cloud.firestore {
         && request.resource.data.email != resource.data.get('email', null);
     }
 
+    function ownerFieldsValid() {
+      return request.resource.data.keys().hasOnly([
+               'displayName', 'displayNameLower', 'totalReviews', 'averageScoreGiven', 'createdAt', 'email'])
+        && (!('displayName' in request.resource.data) || request.resource.data.displayName is string)
+        && (!('totalReviews' in request.resource.data) || request.resource.data.totalReviews is int)
+        && (!('averageScoreGiven' in request.resource.data)
+            || isNumberIn(request.resource.data.averageScoreGiven, 0, 10));
+    }
+
+    // Friend search matches displayNameLower, so it must track displayName
+    function searchNameMatches() {
+      return (!('displayName' in request.resource.data) && !('displayNameLower' in request.resource.data))
+        || request.resource.data.get('displayNameLower', null)
+             == request.resource.data.get('displayName', '').lower();
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
 
       allow create: if signedIn()
         && request.auth.uid == userId
-        && !('email' in request.resource.data);
+        && !('email' in request.resource.data)
+        && ownerFieldsValid()
+        && searchNameMatches();
 
-      allow update: if signedIn() && request.auth.uid == userId && !addsEmail();
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && !addsEmail()
+        && ownerFieldsValid()
+        && (!changedKeys().hasAny(['displayName', 'displayNameLower']) || searchNameMatches());
 
       allow update: if signedIn()
         && request.auth.uid != userId

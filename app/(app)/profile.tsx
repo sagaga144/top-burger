@@ -398,7 +398,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-base">
+      <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
         <UserCard
           uid={user.uid}
           email={user.email ?? ''}
@@ -413,7 +413,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-base">
+    <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id}

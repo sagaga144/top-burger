@@ -27,36 +27,37 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
 
+        {/* Installed iOS PWA with a black-translucent status bar: the page is
+            drawn from the top of the screen, but its viewport height comes out
+            short by the status-bar height (100%, 100vh and 100dvh alike),
+            leaving a dead strip under the tab bar. The app is portrait-only, so
+            size the page to the full screen height. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function () {
+  var standalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (standalone && window.screen.height > window.innerHeight) {
+    document.documentElement.style.height = window.screen.height + 'px';
+  }
+})();`,
+          }}
+        />
+
         <style>{`
           html {
             height: 100%;
+            overflow: hidden;
             background-color: #0F0F0F;
           }
-          /* Safe-area handling on web / iOS PWA:
-             Body padding pushes the RN flex tree into the safe viewport.
-             A background gradient paints the bottom safe-area strip in
-             the tab-bar color (#1C1C1E) so no z-index overlay is needed.
-             useSafeAreaInsets() returns 0 on installed iOS PWAs
-             (expo/expo#26011), so we rely on CSS env(). */
+          /* Safe areas on web: SafeAreaView (every screen) and the tab bar read
+             the real insets through CSS env(), the same as on native, so the
+             body adds no padding of its own. Padding here as well doubled the
+             top gap in the installed iOS PWA. */
           body {
             margin: 0;
             background-color: #0F0F0F;
-            background: linear-gradient(
-              to bottom,
-              #0F0F0F 0%,
-              #0F0F0F calc(100% - env(safe-area-inset-bottom, 0px)),
-              #1C1C1E calc(100% - env(safe-area-inset-bottom, 0px)),
-              #1C1C1E 100%
-            );
-            /* 100% of html, not 100vh/100dvh: in an installed iOS PWA with a
-               black-translucent status bar, the viewport units come out short
-               by the status-bar height, leaving a dead strip under the tab bar. */
             height: 100%;
-            padding-top: env(safe-area-inset-top, 0);
-            padding-bottom: env(safe-area-inset-bottom, 0);
-            padding-left: env(safe-area-inset-left, 0);
-            padding-right: env(safe-area-inset-right, 0);
-            box-sizing: border-box;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -66,20 +67,6 @@ export default function Root({ children }: PropsWithChildren) {
             display: flex;
             flex-direction: column;
             min-height: 0;
-          }
-          /* In standalone PWA mode, force a minimum bottom padding
-             in case env() underreports the home indicator area. */
-          @media (display-mode: standalone) {
-            body {
-              padding-bottom: max(env(safe-area-inset-bottom, 0px), 34px);
-              background: linear-gradient(
-                to bottom,
-                #0F0F0F 0%,
-                #0F0F0F calc(100% - max(env(safe-area-inset-bottom, 0px), 34px)),
-                #1C1C1E calc(100% - max(env(safe-area-inset-bottom, 0px), 34px)),
-                #1C1C1E 100%
-              );
-            }
           }
           /* RTL: react-native-web gives every Text dir="auto", so Latin text
              (restaurant names) would align left inside a Hebrew layout. Align

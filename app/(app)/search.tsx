@@ -430,7 +430,7 @@ export default function SearchScreen() {
     searchState === 'results' && results.length === 0 && selectedCountry != null;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-base">
+    <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
       <View className="flex-1 px-5">
         {/* Header */}
         <View className="pt-4 pb-3">

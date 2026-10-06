@@ -263,7 +263,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-base">
+      <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
         <HomeHeader />
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           {/* Section placeholder */}
@@ -285,7 +285,7 @@ export default function HomeScreen() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-base">
+      <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
         <HomeHeader />
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-base text-text-secondary text-center">{error}</Text>
@@ -295,7 +295,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-base">
+    <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
       <HomeHeader />
       <FlatList
         data={rest}

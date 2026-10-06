@@ -31,9 +31,8 @@ export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === 'web';
   // Reserve space for icons (24) + label (16) + paddingTop (8) + gap + bottom inset
-  // Web: no bottom inset here; body padding in +html.tsx already lifts the tab
-  // bar above the home indicator and paints that strip in the tab-bar color.
-  // Native: use measured insets so the tab bar lifts above iOS/Android nav bars.
+  // Both platforms take the measured bottom inset (on web it comes from CSS
+  // env()), so the tab bar's background fills the home-indicator area.
   const TAB_BAR_HEIGHT = 68 + insets.bottom;
 
   const renderHomeIcon = useCallback(({ focused }: { focused: boolean }) => (
@@ -62,8 +61,8 @@ export default function AppLayout() {
               // Each tab item needs ~54px (5px padding + 28px icon + 16px label + 5px):
               // a shorter bar squeezes the label box and clips its descenders.
               paddingTop: 6,
-              paddingBottom: 5,
-              height: 66,
+              paddingBottom: 5 + insets.bottom,
+              height: 66 + insets.bottom,
             }
           : {
               backgroundColor: '#1C1C1E',

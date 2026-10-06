@@ -29,6 +29,7 @@ export default function Root({ children }: PropsWithChildren) {
 
         <style>{`
           html {
+            height: 100%;
             background-color: #0F0F0F;
           }
           /* Safe-area handling on web / iOS PWA:
@@ -47,8 +48,10 @@ export default function Root({ children }: PropsWithChildren) {
               #1C1C1E calc(100% - env(safe-area-inset-bottom, 0px)),
               #1C1C1E 100%
             );
-            height: 100vh;
-            height: 100dvh;
+            /* 100% of html, not 100vh/100dvh: in an installed iOS PWA with a
+               black-translucent status bar, the viewport units come out short
+               by the status-bar height, leaving a dead strip under the tab bar. */
+            height: 100%;
             padding-top: env(safe-area-inset-top, 0);
             padding-bottom: env(safe-area-inset-bottom, 0);
             padding-left: env(safe-area-inset-left, 0);
@@ -77,6 +80,13 @@ export default function Root({ children }: PropsWithChildren) {
                 #1C1C1E 100%
               );
             }
+          }
+          /* RTL: react-native-web gives every Text dir="auto", so Latin text
+             (restaurant names) would align left inside a Hebrew layout. Align
+             it to the layout's start like native RN does, unless the text has
+             an explicit alignment class. */
+          html[dir="rtl"] [dir="auto"]:not(.text-center):not(.text-right):not(.text-left) {
+            text-align: right;
           }
         `}</style>
       </head>

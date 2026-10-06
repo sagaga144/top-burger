@@ -7,7 +7,8 @@ import { Timestamp } from 'firebase/firestore';
 // ----- Firestore Data Models -----
 
 export interface AppUser {
-  email: string;
+  /** Legacy: no longer written; being removed from existing docs. */
+  email?: string;
   displayName?: string;
   createdAt: Timestamp;
   totalReviews: number;
@@ -38,7 +39,10 @@ export interface Review {
   restaurantAddress: string;
   userId: string;
   authorId: string;
-  userEmail: string;
+  /** Display name of userId at the time of the review. */
+  userName?: string;
+  /** Legacy: older reviews stored the email here; new reviews don't. */
+  userEmail?: string;
   scores: ReviewScores;
   averageScore: number;
   photoUrl: string | null;

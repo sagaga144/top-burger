@@ -80,27 +80,11 @@ import { updateUsername } from '../lib/firestore';
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 
 // ---------------------------------------------------------------------------
-// Replicate handleSelectFriend cap logic as a pure function
-// (mirrors app/(app)/rate/[placeId].tsx lines 159-164)
+// handleSelectFriend cap logic (app/(app)/rate/[placeId].tsx uses addCompanion)
 // ---------------------------------------------------------------------------
 
-interface UserSearchResult {
-  uid: string;
-  displayName: string;
-}
-
-const MAX_COMPANIONS = 5;
-
-function selectFriend(
-  currentSelection: UserSearchResult[],
-  friend: UserSearchResult
-): UserSearchResult[] {
-  if (currentSelection.length >= MAX_COMPANIONS) {
-    // Guard: cap reached — return selection unchanged
-    return currentSelection;
-  }
-  return [...currentSelection, friend];
-}
+import type { UserSearchResult } from '../lib/firestore';
+import { MAX_COMPANIONS, addCompanion as selectFriend } from '../lib/scoring';
 
 // ---------------------------------------------------------------------------
 // Test Suite 1 — updateUsername (lib/firestore.ts)

@@ -135,7 +135,7 @@ export default function CountryPickerModal({
               placeholder={t('search.country.searchPlaceholder')}
               placeholderTextColor="#8E8E93"
               autoCapitalize="none"
-              className="flex-1 ml-2 text-text-primary text-sm"
+              className="flex-1 ms-2 text-text-primary text-sm"
               style={{ fontSize: 14 }}
               testID="country-search-input"
             />

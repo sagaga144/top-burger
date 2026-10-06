@@ -101,7 +101,7 @@ function SelectedCard({ place, onClear, onStartRating }: SelectedCardProps) {
       >
         <View className="flex-row items-start">
           <View
-            className="w-8 h-8 rounded-full bg-brand-red items-center justify-center mr-3 mt-0.5"
+            className="w-8 h-8 rounded-full bg-brand-red items-center justify-center me-3 mt-0.5"
           >
             <Ionicons name="checkmark" size={16} color="#FFFFFF" />
           </View>
@@ -430,7 +430,7 @@ export default function SearchScreen() {
     searchState === 'results' && results.length === 0 && selectedCountry != null;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-base">
+    <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
       <View className="flex-1 px-5">
         {/* Header */}
         <View className="pt-4 pb-3">
@@ -474,7 +474,7 @@ export default function SearchScreen() {
             autoCapitalize="none"
             returnKeyType="search"
             testID="search-input"
-            className="flex-1 ml-2 text-text-primary text-base"
+            className="flex-1 ms-2 text-text-primary text-base"
           />
           {query.length > 0 ? (
             <Pressable

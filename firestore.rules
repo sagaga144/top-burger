@@ -2,28 +2,181 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Restaurants — public read (rankings page), authenticated write (aggregates)
-    match /restaurants/{restaurantId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Reviews — public read, authenticated create/update
-    // Author (authorId) can delete their own reviews
+    function isNumberIn(v, lo, hi) {
+      return v is number && v >= lo && v <= hi;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ---- Restaurants ----
+    // Public read (leaderboard). Created by the first review of a place with
+    // the expected fields; afterwards only the aggregates may change. A rating
+    // session adds one review per participant (1–6); a delete removes one.
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['placeId', 'name', 'address', 'reviewCount', 'averageScore'])
+        && request.resource.data.placeId == restaurantId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 300
+        && request.resource.data.address is string
+        && request.resource.data.address.size() <= 500
+        && request.resource.data.reviewCount is int
+        && request.resource.data.reviewCount >= 1
+        && request.resource.data.reviewCount <= 6
+        && isNumberIn(request.resource.data.averageScore, 1, 10);
+
+      allow update: if signedIn()
+        && changedKeys().hasOnly(['reviewCount', 'averageScore'])
+        && request.resource.data.reviewCount is int
+        && request.resource.data.reviewCount >= 1
+        && (request.resource.data.reviewCount == resource.data.get('reviewCount', 0) - 1
+            || (request.resource.data.reviewCount > resource.data.get('reviewCount', 0)
+                && request.resource.data.reviewCount <= resource.data.get('reviewCount', 0) + 6))
+        && isNumberIn(request.resource.data.averageScore, 1, 10);
+
+      // Deleting the last review removes the restaurant from the leaderboard
+      allow delete: if signedIn() && resource.data.get('reviewCount', 0) <= 1;
+    }
+
+    // ---- Reviews ----
+    // One document per participant per rating session. The signer is always
+    // the author (authorId); userId is whose profile the copy belongs to,
+    // which is the author or a friend tagged in the same session.
+    function validScores(s) {
+      return s is map
+        && s.keys().hasOnly(['overTheTop', 'priciness', 'meatQuality', 'service', 'vibes', 'theSides', 'afterEffect'])
+        && s.keys().hasAll(['overTheTop', 'priciness', 'meatQuality', 'service', 'vibes', 'theSides', 'afterEffect'])
+        && s.overTheTop is int && s.overTheTop >= 1 && s.overTheTop <= 10
+        && s.priciness is int && s.priciness >= 1 && s.priciness <= 10
+        && s.meatQuality is int && s.meatQuality >= 1 && s.meatQuality <= 10
+        && s['service'] is int && s['service'] >= 1 && s['service'] <= 10
+        && s.vibes is int && s.vibes >= 1 && s.vibes <= 10
+        && s.theSides is int && s.theSides >= 1 && s.theSides <= 10
+        && s.afterEffect is int && s.afterEffect >= 1 && s.afterEffect <= 10;
+    }
+
+    function validPhoto(d) {
+      return d.get('photoUrl', null) == null
+        || (d.photoUrl is string && d.photoUrl.matches('https://res[.]cloudinary[.]com/.+'));
+    }
+
+    // A legacy review written before authorId existed belongs to its userId
+    function authorOf(d) {
+      return d.get('authorId', d.userId);
+    }
+
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null
-        && (resource.data.authorId == request.auth.uid
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+             'restaurantId', 'restaurantName', 'restaurantAddress', 'userId', 'authorId',
+             'userName', 'scores', 'averageScore', 'photoUrl', 'photoAspectRatio',
+             'eatenWith', 'createdAt'])
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.userId is string
+        // Tagging: every copy lists all participants (author + up to 5 friends)
+        && request.resource.data.eatenWith is list
+        && request.resource.data.eatenWith.size() <= 6
+        && request.resource.data.eatenWith.hasAll([request.auth.uid, request.resource.data.userId])
+        && request.resource.data.restaurantId is string
+        && request.resource.data.restaurantId.matches('[^/]+')
+        && existsAfter(/databases/$(database)/documents/restaurants/$(request.resource.data.restaurantId))
+        && request.resource.data.restaurantName is string
+        && request.resource.data.restaurantName.size() <= 300
+        && request.resource.data.restaurantAddress is string
+        && request.resource.data.restaurantAddress.size() <= 500
+        // The owner's current display name, so an author can't relabel a copy
+        && request.resource.data.userName
+             == get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.get('displayName', '')
+        && validScores(request.resource.data.scores)
+        && isNumberIn(request.resource.data.averageScore, 1, 10)
+        && validPhoto(request.resource.data)
+        && (!('photoAspectRatio' in request.resource.data)
+            || isNumberIn(request.resource.data.photoAspectRatio, 0.05, 20))
+        && request.resource.data.createdAt == request.time;
+
+      // The app never edits reviews, but the author may, without changing
+      // who or what the review is about.
+      allow update: if signedIn()
+        && authorOf(resource.data) == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+             'restaurantId', 'restaurantName', 'restaurantAddress', 'userId', 'authorId',
+             'userName', 'userEmail', 'scores', 'averageScore', 'photoUrl', 'photoAspectRatio',
+             'eatenWith', 'createdAt'])
+        && !changedKeys().hasAny(['userId', 'authorId', 'userName', 'userEmail', 'restaurantId',
+             'restaurantName', 'restaurantAddress', 'eatenWith', 'createdAt'])
+        && (!('photoAspectRatio' in request.resource.data)
+            || isNumberIn(request.resource.data.photoAspectRatio, 0.05, 20))
+        && validScores(request.resource.data.scores)
+        && isNumberIn(request.resource.data.averageScore, 1, 10)
+        && validPhoto(request.resource.data);
+
+      // The author, or the tagged friend whose copy it is
+      allow delete: if signedIn()
+        && (authorOf(resource.data) == request.auth.uid
             || resource.data.userId == request.auth.uid);
     }
 
-    // Users — authenticated read (friend search), authenticated write
-    // Allows author to update tagged users' review aggregates on submission
+    // ---- Users ----
+    // Readable by signed-in users for friend search, so emails are never
+    // stored here. The owner writes their own doc. Anyone else may only move
+    // the review aggregates by one review, which happens when a friend tags
+    // them (+1) or deletes the copy they were tagged on (-1).
+    function addsEmail() {
+      // Keeping or deleting a legacy email is fine; setting a new one is not
+      return 'email' in request.resource.data
+        && request.resource.data.email != resource.data.get('email', null);
+    }
+
+    function ownerFieldsValid() {
+      return request.resource.data.keys().hasOnly([
+               'displayName', 'displayNameLower', 'totalReviews', 'averageScoreGiven', 'createdAt', 'email'])
+        && (!('displayName' in request.resource.data) || request.resource.data.displayName is string)
+        && (!('totalReviews' in request.resource.data) || request.resource.data.totalReviews is int)
+        && (!('averageScoreGiven' in request.resource.data)
+            || isNumberIn(request.resource.data.averageScoreGiven, 0, 10));
+    }
+
+    // Friend search matches displayNameLower, so it must track displayName
+    function searchNameMatches() {
+      return (!('displayName' in request.resource.data) && !('displayNameLower' in request.resource.data))
+        || request.resource.data.get('displayNameLower', null)
+             == request.resource.data.get('displayName', '').lower();
+    }
+
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && !('email' in request.resource.data)
+        && ownerFieldsValid()
+        && searchNameMatches();
+
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && !addsEmail()
+        && ownerFieldsValid()
+        && (!changedKeys().hasAny(['displayName', 'displayNameLower']) || searchNameMatches());
+
+      allow update: if signedIn()
+        && request.auth.uid != userId
+        && changedKeys().hasOnly(['totalReviews', 'averageScoreGiven'])
+        && request.resource.data.totalReviews is int
+        && (request.resource.data.totalReviews == resource.data.get('totalReviews', 0) + 1
+            || request.resource.data.totalReviews == resource.data.get('totalReviews', 0) - 1
+            || (resource.data.get('totalReviews', 0) == 0 && request.resource.data.totalReviews == 0))
+        && isNumberIn(request.resource.data.averageScoreGiven, 0, 10);
     }
   }
 }

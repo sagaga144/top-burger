@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import PhotoUploader from '../../../components/PhotoUploader';
+import ChevronIcon from '../../../components/ChevronIcon';
 import { RATING_QUESTIONS } from '../../../constants/ratingQuestions';
 import { useAuth } from '../../../store/authStore';
 import {
@@ -21,6 +22,7 @@ import {
   searchUsersByDisplayName,
   UserSearchResult,
 } from '../../../lib/firestore';
+import { MAX_COMPANIONS, addCompanion } from '../../../lib/scoring';
 import { ReviewScores } from '../../../types';
 
 type PartialScores = Partial<ReviewScores>;
@@ -56,8 +58,8 @@ function ScoreRow({ label, selectedScore, onSelect }: ScoreRowProps) {
               testID={`score-box-${label}-${n}`}
               className={
                 selected
-                  ? 'w-[42px] h-[42px] rounded-lg items-center justify-center mr-2 bg-brand-red'
-                  : 'w-[42px] h-[42px] rounded-lg items-center justify-center mr-2 bg-bg-base border border-border-subtle'
+                  ? 'w-[42px] h-[42px] rounded-lg items-center justify-center me-2 bg-brand-red'
+                  : 'w-[42px] h-[42px] rounded-lg items-center justify-center me-2 bg-bg-base border border-border-subtle'
               }
             >
               <Text
@@ -86,8 +88,8 @@ interface SelectedChipProps {
 
 function SelectedChip({ displayName, onRemove }: SelectedChipProps) {
   return (
-    <View className="flex-row items-center bg-brand-red rounded-full px-3 py-1.5 mr-2 mb-2">
-      <Text className="text-sm text-text-inverse mr-1">{displayName}</Text>
+    <View className="flex-row items-center bg-brand-red rounded-full px-3 py-1.5 me-2 mb-2">
+      <Text className="text-sm text-text-inverse me-1">{displayName}</Text>
       <Pressable
         onPress={onRemove}
         accessible={true}
@@ -156,11 +158,9 @@ export default function RateScreen() {
     };
   }, [friendQuery, user]);
 
-  const MAX_COMPANIONS = 5;
-
   const handleSelectFriend = (friend: UserSearchResult) => {
     if (selectedFriends.length >= MAX_COMPANIONS) return;
-    setSelectedFriends((prev) => [...prev, friend]);
+    setSelectedFriends((prev) => addCompanion(prev, friend));
     setFriendQuery('');
     setSearchResults([]);
   };
@@ -190,9 +190,7 @@ export default function RateScreen() {
 
       await saveReviewForMultipleUsers({
         authorUid: user.uid,
-        authorEmail: user.email ?? '',
         taggedUids: selectedFriends.map((f) => f.uid),
-        taggedUsers: selectedFriends,
         placeId,
         placeName: restaurantName,
         placeAddress: restaurantAddress,
@@ -228,7 +226,7 @@ export default function RateScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center"
           >
-            <Ionicons name="chevron-back" size={18} color="#8E8E93" />
+            <ChevronIcon direction="back" size={18} color="#8E8E93" />
           </Pressable>
           <View className="flex-1">
             <Text className="text-base font-bold text-text-primary" numberOfLines={1}>

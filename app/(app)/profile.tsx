@@ -104,7 +104,7 @@ function UserCard({ uid, email, displayName, onUsernameUpdate }: UserCardProps) 
       }}
     >
       <View className="flex-row items-center">
-        <View className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mr-4">
+        <View className="w-14 h-14 rounded-full bg-brand-red items-center justify-center me-4">
           <Text className="text-2xl font-black text-text-inverse">
             {getInitial(email)}
           </Text>
@@ -171,7 +171,7 @@ function UserCard({ uid, email, displayName, onUsernameUpdate }: UserCardProps) 
               testID="username-edit-button"
             >
               <View className="flex-row items-center">
-                <Text className="text-base font-bold text-text-primary mr-2" numberOfLines={1}>
+                <Text className="text-base font-bold text-text-primary me-2" numberOfLines={1}>
                   {displayLabel}
                 </Text>
                 <Ionicons name="pencil-outline" size={16} color="#E63946" />
@@ -398,7 +398,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-base">
+      <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
         <UserCard
           uid={user.uid}
           email={user.email ?? ''}
@@ -413,7 +413,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-base">
+    <SafeAreaView className="flex-1 bg-bg-base" edges={['top', 'left', 'right']}>
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id}

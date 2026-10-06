@@ -191,11 +191,12 @@ export default function SummaryScreen() {
           <Text className="text-sm text-text-secondary mt-0.5" numberOfLines={1}>
             {review.restaurantAddress}
           </Text>
-          {(user?.uid === review.userId || user?.uid === review.authorId) && review.userEmail ? (
+          {/* Your own email, from Auth: reviews no longer store emails */}
+          {user?.email && user.uid === review.userId && (!review.authorId || review.authorId === review.userId) ? (
             <Text className="text-xs text-text-secondary mt-1">
               {t('summary.reviewedBy')}{' '}
               <Text className="text-text-primary font-semibold">
-                {review.userEmail}
+                {user.email}
               </Text>
             </Text>
           ) : null}
@@ -217,7 +218,7 @@ export default function SummaryScreen() {
             >
               {review.averageScore.toFixed(1)}
             </Text>
-            <Text className="text-2xl text-text-secondary mb-2 ml-1">/10</Text>
+            <Text className="text-2xl text-text-secondary mb-2 ms-1">/10</Text>
           </View>
         </View>
 
@@ -273,7 +274,7 @@ export default function SummaryScreen() {
                   .slice(0, 2)
                   .toUpperCase();
                 return (
-                  <View key={c.uid} className="items-center mr-4 mb-2">
+                  <View key={c.uid} className="items-center me-4 mb-2">
                     <View className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center">
                       <Text className="text-xs font-bold text-text-primary">{initials}</Text>
                     </View>

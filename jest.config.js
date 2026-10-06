@@ -7,8 +7,8 @@ module.exports = {
   ],
   moduleNameMapper: {
     // Silence NativeWind / CSS imports in tests
-    '\\.css$': '<rootDir>/__mocks__/fileMock.js',
+    '\.css$': '<rootDir>/__mocks__/fileMock.js',
   },
-  setupFilesAfterFramework: [],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  // Rules tests need the Firestore emulator; they run via `npm run test:rules`
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/rules-tests/'],
 };

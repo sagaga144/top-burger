@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import ChevronIcon from '../../components/ChevronIcon';
 import { subscribeToRestaurantReviews } from '../../lib/firestore';
 import { ReviewWithId } from '../../types';
 import { useAuth } from '../../store/authStore';
@@ -35,8 +36,9 @@ interface ReviewRowProps {
 }
 
 function ReviewRow({ review, onPress }: ReviewRowProps) {
+  const { t } = useTranslation();
   const dateStr = formatDate(review.createdAt as Parameters<typeof formatDate>[0]);
-  const label = review.userEmail ? review.userEmail.split('@')[0] : 'Anonymous';
+  const label = review.userName || (review.userEmail ? review.userEmail.split('@')[0] : t('leaderboard.anonymous'));
 
   return (
     <Pressable
@@ -49,12 +51,12 @@ function ReviewRow({ review, onPress }: ReviewRowProps) {
         boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
       }}
     >
-      <View className="w-9 h-9 rounded-full bg-brand-red items-center justify-center mr-3">
+      <View className="w-9 h-9 rounded-full bg-brand-red items-center justify-center me-3">
         <Text className="text-sm font-bold text-text-inverse">
           {label.charAt(0).toUpperCase()}
         </Text>
       </View>
-      <View className="flex-1 mr-2">
+      <View className="flex-1 me-2">
         <Text className="text-sm font-semibold text-text-primary" numberOfLines={1}>
           {label}
         </Text>
@@ -62,10 +64,10 @@ function ReviewRow({ review, onPress }: ReviewRowProps) {
           <Text className="text-xs text-text-secondary mt-0.5">{dateStr}</Text>
         ) : null}
       </View>
-      <Text className={`text-xl font-black mr-2 ${getScoreColorClass(review.averageScore)}`}>
+      <Text className={`text-xl font-black me-2 ${getScoreColorClass(review.averageScore)}`}>
         {review.averageScore.toFixed(1)}
       </Text>
-      <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
+      <ChevronIcon direction="forward" size={16} color="#8E8E93" />
     </Pressable>
   );
 }
@@ -84,6 +86,7 @@ const ReviewListItem = React.memo(function ReviewListItem({ item, onPress }: Rev
 });
 
 export default function RestaurantDetailScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
   const { restaurantId, name, address } = useLocalSearchParams<{
@@ -153,7 +156,7 @@ export default function RestaurantDetailScreen() {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center"
         >
-          <Ionicons name="chevron-back" size={18} color="#8E8E93" />
+          <ChevronIcon direction="back" size={18} color="#8E8E93" />
         </Pressable>
         <View className="flex-1">
           <Text className="text-base font-bold text-text-primary" numberOfLines={1}>
@@ -176,7 +179,7 @@ export default function RestaurantDetailScreen() {
       {!loading && reviews.length > 0 ? (
         <View className="px-5 pb-2">
           <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
+            {t('leaderboard.reviewCount', { count: reviews.length })}
           </Text>
         </View>
       ) : null}
@@ -187,7 +190,7 @@ export default function RestaurantDetailScreen() {
         </View>
       ) : reviews.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-base text-text-secondary text-center">No reviews yet.</Text>
+          <Text className="text-base text-text-secondary text-center">{t('leaderboard.noReviews')}</Text>
         </View>
       ) : (
         <FlatList

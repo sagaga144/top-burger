@@ -20,5 +20,6 @@ dist/
 .expo/
 .firebase/
 
-# Firestore emulator logs
+# Firebase CLI / emulator logs
+firebase-debug.log
 firestore-debug.log

@@ -4,9 +4,13 @@
  * which bypasses security rules, so run it yourself against production:
  *
  *   npm install --no-save firebase-admin
- *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+ *   export GOOGLE_APPLICATION_CREDENTIALS=/path/outside/the/repo/key.json
  *   node scripts/migrate-data.mjs            # dry run: prints what would change
  *   node scripts/migrate-data.mjs --apply    # writes the changes
+ *
+ * The project id comes from .firebaserc (override with GCLOUD_PROJECT).
+ * Get a key in Firebase console > Project settings > Service accounts, and
+ * delete it there once the migration is done.
  *
  * What it does:
  *  1. reviews: backfills userName (from the owner's displayName, else the
@@ -18,12 +22,31 @@
  *     drift from tagged sessions saved before the aggregate fixes. Restaurants
  *     left with no reviews are deleted, as the app does on the last delete.
  */
+import { readFileSync } from 'fs';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const APPLY = process.argv.includes('--apply');
-initializeApp({ credential: applicationDefault() });
+
+// Project id: GCLOUD_PROJECT if set, else the default project in .firebaserc
+const projectId =
+  process.env.GCLOUD_PROJECT ||
+  JSON.parse(readFileSync(new URL('../.firebaserc', import.meta.url), 'utf8')).projects.default;
+
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.FIRESTORE_EMULATOR_HOST) {
+  console.error(`No credentials. Point GOOGLE_APPLICATION_CREDENTIALS at a service-account key for ${projectId}:
+  Firebase console > Project settings > Service accounts > Generate new private key
+  GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json node scripts/migrate-data.mjs`);
+  process.exit(1);
+}
+
+initializeApp(
+  process.env.FIRESTORE_EMULATOR_HOST
+    ? { projectId }
+    : { credential: applicationDefault(), projectId }
+);
 const db = getFirestore();
+console.log(`Project: ${projectId}${process.env.FIRESTORE_EMULATOR_HOST ? ' (emulator)' : ''}${APPLY ? '' : ' — dry run'}\n`);
 
 const round1 = (n) => Math.round(n * 10) / 10;
 const pending = [];

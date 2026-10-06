@@ -218,7 +218,7 @@ export default function SummaryScreen() {
             >
               {review.averageScore.toFixed(1)}
             </Text>
-            <Text className="text-2xl text-text-secondary mb-2 ml-1">/10</Text>
+            <Text className="text-2xl text-text-secondary mb-2 ms-1">/10</Text>
           </View>
         </View>
 
@@ -274,7 +274,7 @@ export default function SummaryScreen() {
                   .slice(0, 2)
                   .toUpperCase();
                 return (
-                  <View key={c.uid} className="items-center mr-4 mb-2">
+                  <View key={c.uid} className="items-center me-4 mb-2">
                     <View className="w-9 h-9 rounded-full bg-bg-card border border-border-subtle items-center justify-center">
                       <Text className="text-xs font-bold text-text-primary">{initials}</Text>
                     </View>

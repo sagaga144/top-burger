@@ -100,7 +100,7 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      setError('Enter your email above, then tap Forgot Password.');
+      setError(t('login.enterEmailForReset'));
       return;
     }
     setLoading(true);
@@ -143,7 +143,7 @@ export default function LoginScreen() {
               TOP BURGER
             </Text>
             <Text className="text-sm text-text-secondary mt-1">
-              Community Rankings
+              {t('leaderboard.subtitle')}
             </Text>
           </View>
 
@@ -272,7 +272,7 @@ export default function LoginScreen() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text className="text-text-secondary text-sm">
-                  {showPassword ? 'Hide' : 'Show'}
+                  {showPassword ? t('login.hide') : t('login.show')}
                 </Text>
               </Pressable>
             </View>

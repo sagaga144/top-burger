@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 interface RestaurantCardProps {
   rank?: number;
@@ -40,7 +41,7 @@ interface RankBadgeProps {
 function RankBadge({ rank }: RankBadgeProps) {
   return (
     <View
-      className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${getRankBgClass(rank)}`}
+      className={`w-9 h-9 rounded-full items-center justify-center me-3 ${getRankBgClass(rank)}`}
     >
       <Text className={`text-sm font-bold ${getRankTextClass(rank)}`}>
         {rank}
@@ -58,6 +59,7 @@ export default function RestaurantCard({
   variant,
   date,
 }: RestaurantCardProps) {
+  const { t } = useTranslation();
 
   if (variant === 'compact') {
     return (
@@ -65,7 +67,7 @@ export default function RestaurantCard({
         className="bg-bg-card rounded-2xl px-4 py-3 mb-2 flex-row items-center justify-between"
         style={cardShadow}
       >
-        <View className="flex-1 mr-3">
+        <View className="flex-1 me-3">
           <Text
             className="text-base font-semibold text-text-primary"
             numberOfLines={1}
@@ -92,7 +94,7 @@ export default function RestaurantCard({
       style={cardShadow}
     >
       {rank !== undefined ? <RankBadge rank={rank} /> : null}
-      <View className="flex-1 mr-2">
+      <View className="flex-1 me-2">
         <Text
           className="text-base font-semibold text-text-primary"
           numberOfLines={1}
@@ -114,7 +116,7 @@ export default function RestaurantCard({
         </Text>
         {reviewCount !== undefined ? (
           <Text className="text-xs text-text-secondary">
-            {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+            {t('leaderboard.reviewCount', { count: reviewCount })}
           </Text>
         ) : null}
       </View>

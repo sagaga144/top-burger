@@ -45,4 +45,14 @@ i18n
     interpolation: { escapeValue: false },
   });
 
+// I18nManager.forceRTL is a no-op on the web, so mirror the layout the web
+// way: react-native-web follows the document's dir attribute.
+function applyDocumentDirection(lng: string) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = lng;
+  document.documentElement.dir = i18n.dir(lng);
+}
+i18n.on('languageChanged', applyDocumentDirection);
+if (i18n.language) applyDocumentDirection(i18n.language);
+
 export default i18n;

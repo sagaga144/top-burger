@@ -20,6 +20,9 @@
     "enterDisplayName": "Please enter a display name.",
     "passwordsMismatch": "Passwords do not match.",
     "passwordResetSent": "Password reset email sent. Check your inbox.",
+    "show": "Show",
+    "hide": "Hide",
+    "enterEmailForReset": "Enter your email above, then tap Forgot Password.",
     "errors": {
       "invalidEmail": "Please enter a valid email address.",
       "wrongPassword": "Invalid email or password.",
@@ -39,7 +42,11 @@
     "ratePlace": "Rate a Place",
     "noRankings": "No rankings yet",
     "beFirst": "Be the first to rate a restaurant!",
-    "failedLoad": "Failed to load rankings. Pull down to refresh."
+    "failedLoad": "Failed to load rankings. Pull down to refresh.",
+    "live": "LIVE",
+    "reviewCount_one": "{{count}} review",
+    "reviewCount_other": "{{count}} reviews",
+    "anonymous": "Anonymous"
   },
   "search": {
     "title": "Rate a Restaurant",

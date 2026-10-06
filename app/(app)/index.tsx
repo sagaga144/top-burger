@@ -15,10 +15,11 @@ import { subscribeToRestaurants, getRestaurants } from '../../lib/firestore';
 import { RestaurantWithId } from '../../types';
 
 function LiveBadge() {
+  const { t } = useTranslation();
   return (
-    <View className="flex-row items-center bg-error-bg rounded-full px-2.5 py-1 ml-2">
-      <View className="w-2 h-2 rounded-full bg-brand-red mr-1.5" />
-      <Text className="text-xs font-semibold text-brand-red">LIVE</Text>
+    <View className="flex-row items-center bg-error-bg rounded-full px-2.5 py-1 ms-2">
+      <View className="w-2 h-2 rounded-full bg-brand-red me-1.5" />
+      <Text className="text-xs font-semibold text-brand-red">{t('leaderboard.live')}</Text>
     </View>
   );
 }
@@ -73,12 +74,12 @@ function TopThreeCard({ restaurant, rank }: TopThreeCardProps) {
       accessible
       accessibilityRole="button"
       accessibilityLabel={`View reviews for ${restaurant.name}`}
-      className="rounded-2xl mx-5 mb-2 pl-1 overflow-hidden"
+      className="rounded-2xl mx-5 mb-2 ps-1 overflow-hidden"
       style={{
         boxShadow: '0px 4px 12px rgba(0,0,0,0.18)',
       }}
     >
-      <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 }} className={getRankStripClass(rank)} />
+      <View className={`absolute start-0 top-0 bottom-0 w-1 ${getRankStripClass(rank)}`} />
       <RestaurantCard
         rank={rank}
         name={restaurant.name}
